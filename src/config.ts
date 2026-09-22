@@ -173,8 +173,6 @@ export const config = {
     model: optional('OPENAI_MODEL', 'gpt-5.6-sol'),
     providerId: openAiProvider.id,
     providerName: openAiProvider.name,
-    // Provider IDs map to fixed transports and endpoints. There is deliberately no
-    // arbitrary base-URL escape hatch for credentials and private chat data.
     baseUrl: openAiProvider.baseUrl,
     responsesTransport: openAiProvider.responsesTransport,
     toolSearchExecution: openAiProvider.toolSearchExecution,

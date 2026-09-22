@@ -157,6 +157,7 @@ WEB_BASE_URL=http://localhost:3000
 OPENAI_PROVIDER=openai
 OPENAI_API_KEY=...
 OPENAI_MODEL=gpt-5.6-sol
+# OPENAI_BASE_URL=https://openrouter.ai/api/v1  # optional: any OpenAI-compatible endpoint
 OPENAI_RESPONSE_STATE_MODE=stateless
 OPENAI_STORE_RESPONSES=false
 OPENAI_PROGRAMMATIC_TOOL_CALLING=false
@@ -183,7 +184,8 @@ openssl rand -base64 32
 
 Model defaults:
 
-- `OPENAI_PROVIDER=openai` uses the official OpenAI HTTP/SSE endpoint. `modelhub` selects the fixed ModelHub OpenAI-compatible HTTP/SSE endpoint (`https://modelhub.my/v1`); arbitrary `OPENAI_BASE_URL` overrides remain disabled.
+- `OPENAI_PROVIDER=openai` uses the official OpenAI HTTP/SSE endpoint. `modelhub` selects the fixed ModelHub OpenAI-compatible HTTP/SSE endpoint (`https://modelhub.my/v1`).
+- `OPENAI_BASE_URL` (optional) overrides the provider's default API endpoint. Use it to route requests through any OpenAI Responses API-compatible proxy — for example, `https://openrouter.ai/api/v1` for OpenRouter (supports Claude, Gemini, Llama, and others). Capability flags (truncation, programmatic tool calling, etc.) are inherited from the selected `OPENAI_PROVIDER`.
 - The selected provider and its API key are process-wide operator settings. Browser users never provide or receive this key; each user gets an isolated opaque session and chat lane while requests share the configured concurrency and rate limits.
 - `OPENAI_MODEL=gpt-5.6-sol` is the quality-first default. Use `gpt-5.6-terra` for a capability/cost balance or `gpt-5.6-luna` for latency-sensitive, high-volume deployments. The `gpt-5.6` alias routes to Sol.
 - `OPENAI_PROGRAMMATIC_TOOL_CALLING=false` keeps the default direct-tool path. Setting it to `true` opts into provider-entitled hosted programs for exactly nine bounded public-read tools: static counts, batch market prices, wormhole-type comparisons, Scout system searches, compact kill-activity summaries, market-history summaries, system-metric snapshots, doctrine summaries, and dynamic-item summaries. Restart after changing it. See [OpenAI integration](./docs/openai-integration.md) for schemas, budgets, exclusions, real smoke matrices, and rollback.

@@ -49,5 +49,10 @@ export function resolveOpenAiProvider(
   if (!OPENAI_PROVIDER_IDS.includes(raw as OpenAiProviderId)) {
     throw new Error(`OPENAI_PROVIDER must be one of: ${OPENAI_PROVIDER_IDS.join(', ')}`);
   }
-  return OPENAI_PROVIDERS[raw as OpenAiProviderId];
+  const provider = OPENAI_PROVIDERS[raw as OpenAiProviderId];
+  const baseUrlOverride = env.OPENAI_BASE_URL?.trim().replace(/\/$/, '');
+  if (baseUrlOverride) {
+    return { ...provider, baseUrl: baseUrlOverride };
+  }
+  return provider;
 }
