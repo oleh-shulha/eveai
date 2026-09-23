@@ -103,11 +103,13 @@ https://your-domain.example/auth/eve/callback
 
 ## Model Provider
 
-The app uses the Responses API and maps explicit provider IDs to fixed
-transports/endpoints. It does not accept an arbitrary base URL:
+The app uses the Responses API. The endpoint is always taken from the
+environment; the profile declares what that endpoint supports:
 
 ```env
-OPENAI_PROVIDER=openai
+OPENAI_PROFILE=openai
+OPENAI_BASE_URL=https://api.openai.com/v1
+# OPENAI_PROVIDER_NAME=
 OPENAI_MODEL=gpt-5.6-sol
 OPENAI_REASONING_EFFORT=auto
 OPENAI_REASONING_MODE=standard
@@ -117,18 +119,25 @@ OPENAI_RESPONSE_STATE_MODE=stateless
 OPENAI_STORE_RESPONSES=false
 ```
 
-`OPENAI_PROVIDER=openai` targets `https://api.openai.com/v1`.
-`OPENAI_PROVIDER=modelhub` targets the OpenAI-compatible HTTP/SSE route
-`https://modelhub.my/v1/responses` and requires stateless response mode.
-The explicit allowlist prevents an accidental
-base-URL typo from redirecting API credentials and chat/tool data. The
-ModelHub profile omits the optional `truncation:"auto"` field and encrypted
-reasoning replay because neither is confirmed on the proxy. Stateless
-continuation replays the
-function calls and outputs while filtering provider reasoning items. The
-application's bounded SQLite context and compaction remain active.
+`OPENAI_BASE_URL` is required and is the only thing that decides where
+requests go; no endpoint is built into the application. It must be the API root
+(the app appends `/responses`), https except for a loopback proxy, and free of
+embedded credentials, which would otherwise reach every log line that prints
+the endpoint.
 
-The provider selection and `OPENAI_API_KEY` are process-wide operator
+`OPENAI_PROFILE` declares what that endpoint supports. `openai` uses the full
+official contract. `compatible` targets any OpenAI-compatible gateway: it omits
+the optional `truncation:"auto"` field and encrypted reasoning replay, runs
+client-side tool search with the bounded local parallel batch instead of hosted
+Programmatic Tool Calling, and requires stateless response mode. Stateless
+continuation replays the function calls and outputs while filtering provider
+reasoning items. The application's bounded SQLite context and compaction remain
+active.
+
+`OPENAI_PROVIDER_NAME` is the operator-facing label for that endpoint; unset, it
+falls back to the host of `OPENAI_BASE_URL`.
+
+The endpoint selection and `OPENAI_API_KEY` are process-wide operator
 credentials shared by all enabled chat surfaces. The browser never receives
 the key. Each browser visitor gets an isolated opaque session and chat lane,
 while agent concurrency, provider admission, and actor rate limits remain

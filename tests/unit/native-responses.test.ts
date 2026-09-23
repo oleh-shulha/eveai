@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 beforeEach(() => {
   vi.resetModules();
-  // Pin the default provider explicitly: an operator .env may name a provider
+  // Pin the default profile explicitly: an operator .env may name a profile
   // this test does not exercise, and dotenv would otherwise re-populate it.
-  process.env.OPENAI_PROVIDER = 'openai';
+  process.env.OPENAI_PROFILE = 'openai';
   process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1';
   process.env.OPENAI_RESPONSE_STATE_MODE = 'stateless';
   process.env.OPENAI_STORE_RESPONSES = 'false';
 });
 
 afterEach(() => {
-  delete process.env.OPENAI_PROVIDER;
+  process.env.OPENAI_PROFILE = 'openai';
   process.env.OPENAI_RESPONSE_STATE_MODE = 'stateless';
   process.env.OPENAI_STORE_RESPONSES = 'false';
   vi.unstubAllGlobals();
@@ -346,7 +346,7 @@ describe('createNativeResponse request body', () => {
     expect(body?.previous_response_id).toBeUndefined();
   });
 
-  it('keeps automatic truncation on the default OpenAI provider', async () => {
+  it('keeps automatic truncation on the OpenAI profile', async () => {
     process.env.OPENAI_API_KEY = 'test';
     process.env.EVE_CLIENT_ID = 'test';
     process.env.EVE_CLIENT_SECRET = 'test';

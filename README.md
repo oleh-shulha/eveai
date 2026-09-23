@@ -10,12 +10,20 @@
 
 What this fork changes on top of `garshany/eveai`:
 
-- **Any OpenAI-compatible endpoint via `OPENAI_BASE_URL`.** Upstream supports only the official OpenAI
-  endpoint or the fixed ModelHub one. Setting `OPENAI_BASE_URL` overrides the selected provider's
-  default base URL, so the agent can run against any OpenAI Responses-compatible API — an OpenRouter
-  route (Claude, Gemini, Llama, …), a corporate gateway, or a local proxy. Capability flags
-  (truncation, programmatic tool calling, …) are still inherited from `OPENAI_PROVIDER`. See
-  [Required Environment](#required-environment).
+- **The endpoint is configuration, not code (`OPENAI_BASE_URL`).** Upstream hard-codes two vendor
+  endpoints and ignores any base URL. Here `OPENAI_BASE_URL` is required and is the only thing that
+  decides where requests go, so the agent runs against any OpenAI Responses-compatible API — an
+  OpenRouter route (Claude, Gemini, Llama, …), a corporate gateway, or a local proxy. It is validated
+  at startup: absolute API root, https unless loopback, no embedded credentials.
+- **`OPENAI_PROFILE` replaces `OPENAI_PROVIDER`.** The old variable named a vendor and carried its
+  address; the new one declares only what the endpoint supports. `openai` uses the full official
+  contract (hosted tool search and Programmatic Tool Calling, `truncation`, encrypted reasoning
+  replay, server-side response state). `compatible` assumes only the core of the Responses API and
+  switches to the application-owned substitutes: client tool search, the bounded local parallel
+  batch, read subagents, and stateless continuation.
+- **`OPENAI_PROVIDER_NAME` names the recipient of user data.** The browser consent screen and the
+  startup banner show it; unset, it falls back to the host of `OPENAI_BASE_URL` instead of a vendor
+  label that may no longer be true. See [Required Environment](#required-environment).
 
 Everything below is inherited from upstream and describes the project itself.
 
@@ -63,9 +71,9 @@ The v4.0 foundation underneath:
 - Browser users can keep several EVE characters attached to one account, choose
   the active character, and grant only the ESI scopes they want. Consent is
   versioned and presented in Russian and English.
-- OpenAI remains the default provider path. The fixed ModelHub
-  OpenAI-compatible endpoint supports the same application-owned local tools
-  and defaults to the bounded public read-subagent path.
+- The official OpenAI contract remains the reference path. The `compatible`
+  profile supports the same application-owned local tools and defaults to the
+  bounded public read-subagent path on any OpenAI-compatible endpoint.
 - Public deployment controls now include Turnstile verification, trusted-proxy
   CIDRs, HTTPS/hostname validation, request and compute-unit limits, durable
   restart recovery, queue health, and sanitized terminal errors.
@@ -106,7 +114,7 @@ Browser /app ─────────────> Fastify session API ──
                            plan / goal ledger / tool registry / read subagents
                                                              │
                                                              v
-                                    OpenAI or ModelHub Responses transport
+                          Responses endpoint from OPENAI_BASE_URL
                                                              │
                                                              v
                                 ESI / local SDE / EVE-KILL REST+feed ──> SQLite
@@ -132,7 +140,7 @@ Hard constraints:
   - Telegram bot token from [@BotFather](https://t.me/BotFather), and/or
   - Discord bot token from <https://discord.com/developers/applications> (no privileged intents needed; the bot works in DMs).
 - EVE Developer application from <https://developers.eveonline.com/>.
-- A provider API key for the selected `OPENAI_PROVIDER` (`openai` or `modelhub`).
+- An API key for the endpoint in `OPENAI_BASE_URL` (the official OpenAI API or any OpenAI-compatible Responses gateway).
 
 ## Quick Start
 
@@ -163,10 +171,11 @@ TELEGRAM_BOT_TOKEN=...        # and/or DISCORD_BOT_TOKEN
 DISCORD_BOT_TOKEN=...
 WEB_CHAT_ENABLED=true
 WEB_BASE_URL=http://localhost:3000
-OPENAI_PROVIDER=openai
+OPENAI_PROFILE=openai         # openai | compatible
+OPENAI_BASE_URL=https://api.openai.com/v1   # required; any OpenAI-compatible Responses root
+# OPENAI_PROVIDER_NAME=OpenRouter           # optional label shown to users; default = the host
 OPENAI_API_KEY=...
 OPENAI_MODEL=gpt-5.6-sol
-# OPENAI_BASE_URL=https://openrouter.ai/api/v1  # optional: any OpenAI-compatible endpoint
 OPENAI_RESPONSE_STATE_MODE=stateless
 OPENAI_STORE_RESPONSES=false
 OPENAI_PROGRAMMATIC_TOOL_CALLING=false
@@ -193,8 +202,9 @@ openssl rand -base64 32
 
 Model defaults:
 
-- `OPENAI_PROVIDER=openai` uses the official OpenAI HTTP/SSE endpoint. `modelhub` selects the fixed ModelHub OpenAI-compatible HTTP/SSE endpoint (`https://modelhub.my/v1`).
-- `OPENAI_BASE_URL` (optional) overrides the provider's default API endpoint. Use it to route requests through any OpenAI Responses API-compatible proxy — for example, `https://openrouter.ai/api/v1` for OpenRouter (supports Claude, Gemini, Llama, and others). Capability flags (truncation, programmatic tool calling, etc.) are inherited from the selected `OPENAI_PROVIDER`.
+- `OPENAI_BASE_URL` is required and is the only source of the endpoint: the API root of an OpenAI Responses-compatible service, without a trailing `/responses`. It must be https unless it is a loopback proxy, and must not embed credentials — the key belongs in `OPENAI_API_KEY`.
+- `OPENAI_PROFILE` declares what that endpoint supports. `openai` enables the full official contract: hosted tool search and Programmatic Tool Calling, `truncation`, encrypted reasoning replay, and `OPENAI_RESPONSE_STATE_MODE=server`. `compatible` sends only the documented core of the Responses API and uses the application-owned substitutes instead — client tool search, the bounded local parallel batch, read subagents on by default — and requires stateless response mode. Pick `compatible` for OpenRouter, ModelHub, LiteLLM, or any other gateway; a gateway that rejects an optional field answers with a 400 rather than degrading quietly.
+- `OPENAI_PROVIDER_NAME` (optional) is the name shown in the startup banner and on the browser consent screen, which tells each user who receives their data. Unset, it falls back to the host of `OPENAI_BASE_URL`.
 - The selected provider and its API key are process-wide operator settings. Browser users never provide or receive this key; each user gets an isolated opaque session and chat lane while requests share the configured concurrency and rate limits.
 - `OPENAI_MODEL=gpt-5.6-sol` is the quality-first default. Use `gpt-5.6-terra` for a capability/cost balance or `gpt-5.6-luna` for latency-sensitive, high-volume deployments. The `gpt-5.6` alias routes to Sol.
 - `OPENAI_PROGRAMMATIC_TOOL_CALLING=false` keeps the default direct-tool path. Setting it to `true` opts into provider-entitled hosted programs for exactly nine bounded public-read tools: static counts, batch market prices, wormhole-type comparisons, Scout system searches, compact kill-activity summaries, market-history summaries, system-metric snapshots, doctrine summaries, and dynamic-item summaries. Restart after changing it. See [OpenAI integration](./docs/openai-integration.md) for schemas, budgets, exclusions, real smoke matrices, and rollback.

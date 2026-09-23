@@ -10,11 +10,11 @@ import {
   toApiReasoningEffort,
 } from '../src/openai-options.js';
 import { validateOpenAiSmokeCompletion } from '../src/openai-smoke-validation.js';
-import { resolveOpenAiProvider } from '../src/openai-provider.js';
+import { resolveOpenAiProfile } from '../src/openai-profile.js';
 import { createNativeResponse, toNativeMessage } from '../src/agent/native-responses.js';
 
-const provider = resolveOpenAiProvider();
-const baseUrl = provider.baseUrl;
+const profile = resolveOpenAiProfile();
+const baseUrl = profile.baseUrl;
 const apiKey = process.env.OPENAI_API_KEY || '';
 const model = process.env.OPENAI_MODEL || 'gpt-5.6-sol';
 const configuredReasoningEffort = parseOptionalEnumEnv(
@@ -75,9 +75,10 @@ try {
 
   console.log(JSON.stringify({
     ok: true,
-    provider: provider.id,
+    profile: profile.id,
+    provider_name: profile.providerName,
     endpoint: `${baseUrl}/responses`,
-    transport: provider.responsesTransport,
+    transport: profile.responsesTransport,
     model: validated.model ?? model,
     reasoning_effort: reasoningEffort,
     reasoning_mode: reasoningMode,

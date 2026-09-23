@@ -15,7 +15,7 @@ import {
   type ResponseStateMode,
   TEXT_VERBOSITIES,
 } from './openai-options.js';
-import { resolveOpenAiProvider } from './openai-provider.js';
+import { resolveOpenAiProfile } from './openai-profile.js';
 import { parseModelPricingJson } from './usage/pricing.js';
 
 /**
@@ -131,14 +131,14 @@ function parseFxConfig(): { usdRubRate: number | null; usdRubRateDate: string | 
 }
 
 const storeResponses = parseOptionalStrictBooleanEnv(process.env, 'OPENAI_STORE_RESPONSES', false);
-const openAiProvider = resolveOpenAiProvider();
+const openAiProfile = resolveOpenAiProfile();
 const responseStateMode = parseResponseStateMode(storeResponses);
 const readSubagentsEnabled = optionalBoolean(
   'CHEAPVIBE_READ_SUBAGENTS_ENABLED',
-  openAiProvider.id === 'modelhub',
+  openAiProfile.readSubagentsDefault,
 );
-if (openAiProvider.id === 'modelhub' && responseStateMode === 'server') {
-  throw new Error('ModelHub does not support server-side response state; set OPENAI_RESPONSE_STATE_MODE=stateless');
+if (!openAiProfile.supportsServerResponseState && responseStateMode === 'server') {
+  throw new Error(`OPENAI_PROFILE=${openAiProfile.id} has no server-side response state; set OPENAI_RESPONSE_STATE_MODE=stateless`);
 }
 if (process.env.WEB_TRUST_PROXY?.trim().toLowerCase() === 'true') {
   throw new Error('WEB_TRUST_PROXY=true is unsafe; configure explicit WEB_TRUSTED_PROXY_CIDRS instead');
@@ -171,15 +171,15 @@ export const config = {
   openai: {
     apiKey: required('OPENAI_API_KEY'),
     model: optional('OPENAI_MODEL', 'gpt-5.6-sol'),
-    providerId: openAiProvider.id,
-    providerName: openAiProvider.name,
-    baseUrl: openAiProvider.baseUrl,
-    responsesTransport: openAiProvider.responsesTransport,
-    toolSearchExecution: openAiProvider.toolSearchExecution,
-    supportsHostedProgrammaticToolCalling: openAiProvider.supportsHostedProgrammaticToolCalling,
-    supportsLocalParallelBatch: openAiProvider.supportsLocalParallelBatch,
-    supportsTruncation: openAiProvider.supportsTruncation,
-    supportsEncryptedReasoningReplay: openAiProvider.supportsEncryptedReasoningReplay,
+    profileId: openAiProfile.id,
+    providerName: openAiProfile.providerName,
+    baseUrl: openAiProfile.baseUrl,
+    responsesTransport: openAiProfile.responsesTransport,
+    toolSearchExecution: openAiProfile.toolSearchExecution,
+    supportsHostedProgrammaticToolCalling: openAiProfile.supportsHostedProgrammaticToolCalling,
+    supportsLocalParallelBatch: openAiProfile.supportsLocalParallelBatch,
+    supportsTruncation: openAiProfile.supportsTruncation,
+    supportsEncryptedReasoningReplay: openAiProfile.supportsEncryptedReasoningReplay,
     responseStateMode,
     reasoningEffort: parseOptionalEnumEnv(process.env, 'OPENAI_REASONING_EFFORT', REASONING_EFFORTS, 'auto'),
     // Optional per-iteration effort tiers for the native tool loop. 'auto'

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { parseOptionalStrictBooleanEnv } from './config-env.js';
-import { resolveOpenAiProvider } from './openai-provider.js';
+import { resolveOpenAiProfile } from './openai-profile.js';
 
 type SmokeStatus = 'ok' | 'fail' | 'skip';
 
@@ -124,8 +124,7 @@ async function checkOpenAiResponses(): Promise<SmokeCheck> {
     return { name: 'model_responses', status: 'skip', detail: 'OPENAI_API_KEY is not set' };
   }
 
-  const provider = resolveOpenAiProvider();
-  const baseUrl = provider.baseUrl;
+  const baseUrl = resolveOpenAiProfile().baseUrl;
   const model = process.env.OPENAI_MODEL?.trim() || 'gpt-5.6-sol';
   const storeResponses = parseOptionalStrictBooleanEnv(
     process.env,

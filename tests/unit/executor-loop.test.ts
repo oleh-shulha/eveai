@@ -89,9 +89,9 @@ beforeEach(() => {
   process.env.DEFAULT_MARKET_REGION_NAME = 'The Forge';
   process.env.OPENAI_RESPONSE_STATE_MODE = 'stateless';
   process.env.OPENAI_PROGRAMMATIC_TOOL_CALLING = 'false';
-  // Pin the default provider explicitly: an operator .env may name a provider
+  // Pin the default profile explicitly: an operator .env may name a profile
   // this test does not exercise, and dotenv would otherwise re-populate it.
-  process.env.OPENAI_PROVIDER = 'openai';
+  process.env.OPENAI_PROFILE = 'openai';
   process.env.OPENAI_REASONING_EFFORT = 'auto';
   process.env.OPENAI_REASONING_MODE = 'standard';
   process.env.AUTH_SECRET_KEY = 'test-secret';
@@ -111,7 +111,7 @@ beforeEach(() => {
 
 afterEach(() => {
   db.close();
-  delete process.env.OPENAI_PROVIDER;
+  process.env.OPENAI_PROFILE = 'openai';
   delete process.env.CHEAPVIBE_READ_SUBAGENTS_ENABLED;
   delete process.env.AGENT_MAX_TOOL_OUTPUT_CHARS;
   delete process.env.AGENT_SMART_AGGREGATE_THRESHOLD;
@@ -287,13 +287,13 @@ describe('client tool search loop', () => {
     };
   }
 
-  function useModelHub(): void {
-    process.env.OPENAI_PROVIDER = 'modelhub';
+  function useCompatibleProfile(): void {
+    process.env.OPENAI_PROFILE = 'compatible';
     vi.resetModules();
   }
 
   it('replays a valid client search call and its exact call-id output before continuing', async () => {
-    useModelHub();
+    useCompatibleProfile();
     createNativeResponseMock
       .mockResolvedValueOnce(outputResponse([toolSearchCall('search_1')]))
       .mockResolvedValueOnce(textResponse('нашёл подходящий tool'));
@@ -360,7 +360,7 @@ describe('client tool search loop', () => {
       ],
     },
   ])('fails closed on $label before any tool dispatch', async ({ output, maxSearchCalls }) => {
-    useModelHub();
+    useCompatibleProfile();
     if (typeof maxSearchCalls === 'string') {
       process.env.AGENT_MAX_CLIENT_SEARCH_CALLS_PER_RESPONSE = maxSearchCalls;
       vi.resetModules();
@@ -374,7 +374,7 @@ describe('client tool search loop', () => {
   });
 
   it('allows ten sequential useful searches without repeating loaded schemas', async () => {
-    useModelHub();
+    useCompatibleProfile();
     const queries = [
       'market_history_summary',
       'system_metric_snapshot',
@@ -419,7 +419,7 @@ describe('client tool search loop', () => {
   });
 
   it('terminalizes an active plan when discovery protocol fails', async () => {
-    useModelHub();
+    useCompatibleProfile();
     createNativeResponseMock
       .mockResolvedValueOnce(outputResponse([{
         type: 'function_call',
@@ -453,7 +453,7 @@ describe('client tool search loop', () => {
   });
 
   it('terminalizes a created plan after a successful final response', async () => {
-    useModelHub();
+    useCompatibleProfile();
     createNativeResponseMock
       .mockResolvedValueOnce(outputResponse([{
         type: 'function_call',
@@ -481,9 +481,9 @@ describe('client tool search loop', () => {
   });
 });
 
-describe('ModelHub read subagent integration', () => {
+describe('compatible-profile read subagent integration', () => {
   it('runs two isolated public workers and returns one bounded aggregate to the root', async () => {
-    process.env.OPENAI_PROVIDER = 'modelhub';
+    process.env.OPENAI_PROFILE = 'compatible';
     process.env.CHEAPVIBE_READ_SUBAGENTS_ENABLED = 'true';
     vi.resetModules();
     db.prepare('INSERT INTO sde_regions (region_id, name, data_json) VALUES (?, ?, ?), (?, ?, ?)').run(

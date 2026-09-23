@@ -39,7 +39,7 @@ describe('smoke helpers', () => {
 
 describe('runSmokeChecks', () => {
   it('passes when the OpenAI API and app health respond', async () => {
-    delete process.env.OPENAI_PROVIDER;
+    process.env.OPENAI_PROFILE = 'openai';
     process.env.TELEGRAM_BOT_TOKEN = 'x';
     process.env.OPENAI_API_KEY = 'x';
     process.env.EVE_CLIENT_ID = 'x';
@@ -71,7 +71,7 @@ describe('runSmokeChecks', () => {
   });
 
   it('fails when the model endpoint or app health is unavailable', async () => {
-    delete process.env.OPENAI_PROVIDER;
+    process.env.OPENAI_PROFILE = 'openai';
     process.env.TELEGRAM_BOT_TOKEN = 'x';
     process.env.OPENAI_API_KEY = 'x';
     process.env.EVE_CLIENT_ID = 'x';
@@ -98,18 +98,19 @@ describe('runSmokeChecks', () => {
     expect(result.checks.find((check) => check.name === 'app_health')?.status).toBe('fail');
   });
 
-  it('checks the selected ModelHub Responses endpoint', async () => {
+  it('checks the configured compatible gateway endpoint', async () => {
     process.env.TELEGRAM_BOT_TOKEN = 'x';
     process.env.OPENAI_API_KEY = 'x';
     process.env.EVE_CLIENT_ID = 'x';
     process.env.EVE_CLIENT_SECRET = 'x';
     process.env.DEFAULT_MARKET_REGION_ID = '10000002';
     process.env.DEFAULT_MARKET_REGION_NAME = 'The Forge';
-    process.env.OPENAI_PROVIDER = 'modelhub';
+    process.env.OPENAI_PROFILE = 'compatible';
+    process.env.OPENAI_BASE_URL = 'https://gateway.example/v1';
     process.env.WEB_BASE_URL = 'http://127.0.0.1:3000';
 
     const fetchMock = vi.fn(async (url: string) => {
-      if (url === 'https://modelhub.my/v1/responses') {
+      if (url === 'https://gateway.example/v1/responses') {
         return new Response('event: response.completed\ndata: {"type":"response.completed","response":{"id":"resp_mh","output_text":"pong"}}\n\n', { status: 200 });
       }
       if (url === 'http://127.0.0.1:3000/health') {

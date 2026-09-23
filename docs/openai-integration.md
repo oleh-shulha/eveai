@@ -5,10 +5,10 @@ This project uses the OpenAI Responses API for a tool-heavy EVE Online agent loo
 ## Default Target
 
 - Model: `gpt-5.6-sol`
-- Provider: `openai` (default) or `modelhub`
-- Transport: both providers use streamed HTTP `POST /v1/responses`
-- Base URL: fixed by provider ID (`https://api.openai.com/v1` or
-  `https://modelhub.my/v1`)
+- Profile: `openai` or `compatible` (required, no default)
+- Transport: both profiles use streamed HTTP `POST {base}/responses`
+- Base URL: required, operator-supplied `OPENAI_BASE_URL` (e.g.
+  `https://api.openai.com/v1`)
 - Reasoning effort: `auto` (local goal classifier, with `medium` for internal calls)
 - Reasoning mode: `standard`
 - Text verbosity: `low`
@@ -19,21 +19,24 @@ This project uses the OpenAI Responses API for a tool-heavy EVE Online agent loo
 
 These defaults follow the current [GPT-5.6 guidance](https://developers.openai.com/api/docs/guides/latest-model): use the Responses API for reasoning and tools, select a family tier by workload, set reasoning and verbosity intentionally, keep stable prompt content first for caching, and preserve output-item fields when replaying tool state.
 
-`OPENAI_PROVIDER` is an explicit allowlist, not a generic gateway URL. The
-runtime, authenticated smoke, and aggregate smoke resolve the same fixed
-endpoint. Unknown IDs fail at startup, and `OPENAI_BASE_URL` remains ignored so
-an operator typo cannot redirect credentials or private chat/tool data.
-ModelHub is an OpenAI-compatible proxy reached over the same streamed HTTP
-`POST /v1/responses` transport as OpenAI. Its provider profile omits the
-optional `truncation:"auto"` field and `reasoning.encrypted_content` because
-neither is confirmed on the proxy. Local bounded context,
+`OPENAI_BASE_URL` is the single source of the endpoint: the runtime,
+authenticated smoke, and aggregate smoke all resolve it, and no address is
+built into the code. It is validated at startup as an absolute API root, https
+except for a loopback proxy, without embedded credentials, query, fragment, or
+a trailing `/responses`.
+
+`OPENAI_PROFILE` is an explicit capability contract for that endpoint, not an
+address. Unknown IDs fail at startup. `compatible` covers any OpenAI-compatible
+gateway reached over the same streamed HTTP `POST {base}/responses` transport:
+it omits the optional `truncation:"auto"` field and `reasoning.encrypted_content`
+because neither is guaranteed off the official API. Local bounded context,
 pre-turn compaction, and mid-turn compaction still enforce the context budget.
 Its client `tool_search` descriptor must match the expected wire shape exactly:
 `type`, `execution`, `description`, and `parameters`.
-ModelHub stateless continuation therefore replays
-function calls and outputs but filters reasoning items. The default OpenAI
+Compatible stateless continuation therefore replays
+function calls and outputs but filters reasoning items. The `openai`
 profile keeps exact encrypted-reasoning replay unchanged.
-Both registered providers use the same HTTP/SSE Responses transport; the
+Both profiles use the same HTTP/SSE Responses transport; the
 codebase carries no second transport.
 
 ## Model And Reasoning Choice
@@ -69,13 +72,13 @@ same SQLite transaction as the exact assistant-message id it represents. The id
 is reused only when that assistant is still the latest assistant, exactly one
 new user message follows it, and the anchor is no older than 55 minutes. Every
 other case cold-starts from SQLite. Missing provider state also cold-replays the
-exact active turn. ModelHub is an OpenAI-compatible proxy without server-side
-response state and therefore requires `stateless`; startup rejects the
-server-state combination.
+exact active turn. The `compatible` profile assumes no server-side response
+state and therefore requires `stateless`; startup rejects the server-state
+combination.
 
-## ModelHub client tool search and local parallel batch
+## Compatible-profile client tool search and local parallel batch
 
-ModelHub advertises client-executed `tool_search`. Deferred tool schemas
+The `compatible` profile runs client-executed `tool_search`. Deferred tool schemas
 remain in an immutable per-turn local index built from the exact inventory
 already filtered for the current notification lane and configured integrations.
 The first request carries only always-on tools plus a strict client-search
@@ -93,8 +96,8 @@ Missing, duplicate, mixed, conflicting, malformed, or over-budget search
 responses fail closed with a sanitized diagnostic. OpenAI retains its hosted
 tool-search path unchanged.
 
-ModelHub does not expose hosted Programmatic Tool Calling. EVE therefore never
-sends `programmatic_tool_calling` to that provider,
+The `compatible` profile assumes no hosted Programmatic Tool Calling. EVE
+therefore never sends `programmatic_tool_calling` to such an endpoint,
 even if the hosted feature flag is set. Its local `local_parallel_batch` is a
 declarative bounded substitute, not a JavaScript runtime: it accepts one to four
 unique calls from the existing nine public-read facade names, validates the
@@ -122,8 +125,8 @@ history, profile, character identity, private ESI data, tokens, route tools,
 writes, UI actions, or delegation tool. Workers cannot recurse. Results use
 all-settled semantics and return in stable job order so a failed sibling cannot
 erase successful evidence; the root model alone writes the user-facing answer.
-ModelHub enables this path by default; OpenAI keeps it default-off but uses
-the same application coordinator when explicitly enabled.
+The `compatible` profile enables this path by default; `openai` keeps it
+default-off but uses the same application coordinator when explicitly enabled.
 
 The coordinator is intentionally narrow: use it for two or three independent,
 bounded public reads whose overlap saves latency. Simple chat, a single read,
@@ -200,7 +203,7 @@ GPT-5.6 `reasoning.context=all_turns` is intentionally not exposed. With `store=
 Within one active tool loop, the default OpenAI profile requests
 `reasoning.encrypted_content` and replays each opaque reasoning item in provider
 output order with the corresponding function calls and outputs. These items are
-never persisted in SQLite. The ModelHub profile is the explicit exception:
+never persisted in SQLite. The `compatible` profile is the explicit exception:
 it does not request encrypted reasoning and filters reasoning items while
 replaying function calls and outputs. With the default
 `OPENAI_STORE_RESPONSES=false`, the application does not create a stored
@@ -228,7 +231,7 @@ not remove prior-chain input from billing. Top-level instructions are still sent
 on every request. Prompt caching may reduce repeated-prefix processing, but it is
 not conversation memory and usage counters remain authoritative.
 
-ModelHub prefix caching is not yet probe-verified.
+Prefix caching on a compatible gateway is not probe-verified.
 Treat `cached_tokens` as the runtime billing/latency evidence;
 do not infer a cache write from an absent `cache_write_tokens` counter. The app keeps its opaque
 `prompt_cache_key` derived per user and never sends a raw user/chat/database ID.
@@ -321,7 +324,7 @@ npm run smoke:eve-tool
 
 `npm run check` validates type safety, unit/integration tests, linting, and Responses payload regressions. `npm run smoke` checks required environment variables, the model `/responses` endpoint, and app health.
 
-The authenticated smoke script sends a minimal request through the selected provider transport: HTTP/SSE for both OpenAI and ModelHub. It prints only sanitized response metadata.
+The authenticated smoke script sends a minimal request to the configured `OPENAI_BASE_URL` over HTTP/SSE, the transport of both profiles. It prints only sanitized endpoint metadata.
 
 `npm run smoke:eve-tool` runs the real agent loop on a copied SQLite database and requires the model to call an EVE SDE tool before returning a final answer. Use `EVE_TOOL_SMOKE_MODE=direct` to validate only the DB-backed tool path without a model call.
 
@@ -395,7 +398,7 @@ operations:
   ordered attribute IDs, then returns only those numeric values plus optional
   local-SDE base/delta evidence.
 
-OpenAI's hosted runtime executes generated programs. EVE never evaluates generated JavaScript and executes only returned client-owned function calls. On the OpenAI profile, every provider output item (including opaque reasoning, `program`, `program_output`, fingerprints, messages, and callers) is retained in memory for the active turn and replayed in exact provider order, followed by local function outputs in call order. The ModelHub profile filters reasoning items as described above; its local compatibility profile keeps Programmatic Tool Calling disabled. EVE does not persist program code, fingerprints, encrypted reasoning, or replay payloads in SQLite. When `OPENAI_STORE_RESPONSES=true`, OpenAI may retain those request and response items in its stored Response logs. Mid-turn SQLite compaction is skipped while a program is active because it cannot reconstruct this chain.
+OpenAI's hosted runtime executes generated programs. EVE never evaluates generated JavaScript and executes only returned client-owned function calls. On the OpenAI profile, every provider output item (including opaque reasoning, `program`, `program_output`, fingerprints, messages, and callers) is retained in memory for the active turn and replayed in exact provider order, followed by local function outputs in call order. The `compatible` profile filters reasoning items as described above and keeps Programmatic Tool Calling disabled. EVE does not persist program code, fingerprints, encrypted reasoning, or replay payloads in SQLite. When `OPENAI_STORE_RESPONSES=true`, OpenAI may retain those request and response items in its stored Response logs. Mid-turn SQLite compaction is skipped while a program is active because it cannot reconstruct this chain.
 
 The application permits at most four programmatic calls per response batch,
 user turn, and program ID. Family work ceilings are 40 region/type pairs for

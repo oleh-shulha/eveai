@@ -13,7 +13,8 @@ const TEST_ENV_DEFAULTS: Record<string, string> = {
   DEFAULT_MARKET_REGION_ID: '10000002',
   DEFAULT_MARKET_REGION_NAME: 'The Forge',
   OPENAI_RESPONSE_STATE_MODE: 'stateless',
-  OPENAI_PROVIDER: 'openai',
+  OPENAI_PROFILE: 'openai',
+  OPENAI_BASE_URL: 'https://api.openai.com/v1',
   OPENAI_STORE_RESPONSES: 'false',
   OPENAI_PROGRAMMATIC_TOOL_CALLING: 'false',
   WEB_BASE_URL: 'http://localhost:3000',
@@ -30,7 +31,8 @@ for (const [key, value] of Object.entries(TEST_ENV_DEFAULTS)) {
 // These feature flags are intentionally pinned even when the operator's shell
 // exports local pilot values. Individual tests may override them after setup.
 process.env.OPENAI_RESPONSE_STATE_MODE = 'stateless';
-process.env.OPENAI_PROVIDER = 'openai';
+process.env.OPENAI_PROFILE = 'openai';
+process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1';
 process.env.OPENAI_STORE_RESPONSES = 'false';
 process.env.OPENAI_PROGRAMMATIC_TOOL_CALLING = 'false';
 

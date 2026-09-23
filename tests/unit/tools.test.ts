@@ -349,8 +349,8 @@ describe('agent tools', () => {
     expect(tools.some((tool) => tool.type === 'mcp')).toBe(false);
   });
 
-  it('gates hosted PTC off and exposes only the local batch on ModelHub', async () => {
-    process.env.OPENAI_PROVIDER = 'modelhub';
+  it('gates hosted PTC off and exposes only the local batch on the compatible profile', async () => {
+    process.env.OPENAI_PROFILE = 'compatible';
     process.env.OPENAI_PROGRAMMATIC_TOOL_CALLING = 'true';
     vi.resetModules();
     try {
@@ -383,14 +383,14 @@ describe('agent tools', () => {
         .filter((tool) => tool.type === 'function' && (tool.allowed_callers || tool.output_schema));
       expect(decorated).toEqual([]);
     } finally {
-      delete process.env.OPENAI_PROVIDER;
+      process.env.OPENAI_PROFILE = 'openai';
       process.env.OPENAI_PROGRAMMATIC_TOOL_CALLING = 'false';
       vi.resetModules();
     }
   });
 
-  it('exposes the same application-managed delegation tool on an explicit OpenAI opt-in', async () => {
-    process.env.OPENAI_PROVIDER = 'openai';
+  it('exposes the same application-managed delegation tool on an explicit OpenAI-profile opt-in', async () => {
+    process.env.OPENAI_PROFILE = 'openai';
     process.env.CHEAPVIBE_READ_SUBAGENTS_ENABLED = 'true';
     vi.resetModules();
     try {
@@ -400,7 +400,7 @@ describe('agent tools', () => {
         (tool) => tool.type === 'function' && tool.name === 'delegate_read_subagents',
       )).toBe(true);
     } finally {
-      delete process.env.OPENAI_PROVIDER;
+      process.env.OPENAI_PROFILE = 'openai';
       delete process.env.CHEAPVIBE_READ_SUBAGENTS_ENABLED;
       vi.resetModules();
     }

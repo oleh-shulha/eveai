@@ -254,7 +254,7 @@ async function main(): Promise<void> {
       schema_version: 1,
       mode: 'live',
       generated_at: new Date().toISOString(),
-      provider: config.openai.providerId,
+      profile: config.openai.profileId,
       model: config.openai.model,
       db_path: args.dbPath,
       response_state_mode: config.openai.responseStateMode,
@@ -268,7 +268,7 @@ async function main(): Promise<void> {
     };
 
     if (!args.json) {
-      console.log(`Agent latency bench: ${prompts.length} prompts x ${args.runs} runs, provider=${report.provider} model=${report.model} db=${report.db_path}`);
+      console.log(`Agent latency bench: ${prompts.length} prompts x ${args.runs} runs, profile=${report.profile} model=${report.model} db=${report.db_path}`);
       printTable(report);
       for (const entry of promptReports) {
         const failed = entry.runs.filter((run) => run.status === 'error');

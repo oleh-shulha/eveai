@@ -44,29 +44,36 @@ describe('OpenAI runtime configuration', () => {
     process.env.OPENAI_PROGRAMMATIC_TOOL_CALLING = 'yes';
     await expect(import('../../src/config.js')).rejects.toThrow('OPENAI_PROGRAMMATIC_TOOL_CALLING');
   });
-  it('defaults to OpenAI and ignores a legacy arbitrary base URL override', async () => {
+  it('takes the endpoint from OPENAI_BASE_URL and the capabilities from the profile', async () => {
     setRequiredEnv();
-    delete process.env.OPENAI_PROVIDER;
-    process.env.OPENAI_BASE_URL = 'https://untrusted.example/v1';
+    process.env.OPENAI_PROFILE = 'openai';
+    process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1/';
+    delete process.env.OPENAI_PROVIDER_NAME;
 
     const { config } = await import('../../src/config.js');
 
-    expect(config.openai.providerId).toBe('openai');
+    expect(config.openai.profileId).toBe('openai');
     expect(config.openai.baseUrl).toBe('https://api.openai.com/v1');
+    // No name configured: the consent page names the host that actually
+    // receives the data instead of a vendor label.
+    expect(config.openai.providerName).toBe('api.openai.com');
+    expect(config.openai.toolSearchExecution).toBe('hosted');
     expect(config.openai.supportsTruncation).toBe(true);
     expect(config.openai.supportsEncryptedReasoningReplay).toBe(true);
+    expect(config.openai.supportsLocalParallelBatch).toBe(false);
   });
 
-  it('selects the fixed ModelHub Responses endpoint by provider ID', async () => {
+  it('runs the compatible profile against an arbitrary gateway with conservative capabilities', async () => {
     setRequiredEnv();
-    process.env.OPENAI_PROVIDER = ' modelhub ';
-    process.env.OPENAI_BASE_URL = 'https://untrusted.example/v1';
+    process.env.OPENAI_PROFILE = ' Compatible ';
+    process.env.OPENAI_BASE_URL = 'https://gateway.example/api/v1';
+    process.env.OPENAI_PROVIDER_NAME = '  Example  Gateway ';
 
     const { config } = await import('../../src/config.js');
 
-    expect(config.openai.providerId).toBe('modelhub');
-    expect(config.openai.providerName).toBe('ModelHub');
-    expect(config.openai.baseUrl).toBe('https://modelhub.my/v1');
+    expect(config.openai.profileId).toBe('compatible');
+    expect(config.openai.baseUrl).toBe('https://gateway.example/api/v1');
+    expect(config.openai.providerName).toBe('Example Gateway');
     expect(config.openai.responsesTransport).toBe('http_sse');
     expect(config.openai.toolSearchExecution).toBe('client');
     expect(config.openai.supportsHostedProgrammaticToolCalling).toBe(false);
@@ -74,46 +81,78 @@ describe('OpenAI runtime configuration', () => {
     expect(config.openai.supportsTruncation).toBe(false);
     expect(config.openai.supportsEncryptedReasoningReplay).toBe(false);
     expect(config.openai.readSubagentsEnabled).toBe(true);
-    expect(config.openai.readSubagentConcurrency).toBe(4);
-    expect(config.openai.maxConcurrentEsiLeaves).toBe(12);
   });
 
-  it('hard-bounds nested ESI leaf concurrency', async () => {
+  it('allows application-managed read subagents on the OpenAI profile when explicitly enabled', async () => {
     setRequiredEnv();
-    process.env.AGENT_MAX_CONCURRENT_ESI_LEAVES = '500';
-
-    expect((await import('../../src/config.js')).config.openai.maxConcurrentEsiLeaves).toBe(64);
-
-    vi.resetModules();
-    process.env.AGENT_MAX_CONCURRENT_ESI_LEAVES = '0';
-    await expect(import('../../src/config.js')).rejects.toThrow('AGENT_MAX_CONCURRENT_ESI_LEAVES');
-  });
-
-  it('allows application-managed read subagents on the OpenAI provider when explicitly enabled', async () => {
-    setRequiredEnv();
-    process.env.OPENAI_PROVIDER = 'openai';
+    process.env.OPENAI_PROFILE = 'openai';
     process.env.CHEAPVIBE_READ_SUBAGENTS_ENABLED = 'true';
 
     expect((await import('../../src/config.js')).config.openai.readSubagentsEnabled).toBe(true);
   });
 
-  it('rejects unknown provider IDs instead of accepting arbitrary endpoints', async () => {
+  it('rejects unknown profile IDs', async () => {
     setRequiredEnv();
-    process.env.OPENAI_PROVIDER = 'custom-gateway';
+    process.env.OPENAI_PROFILE = 'custom-gateway';
 
     await expect(import('../../src/config.js')).rejects.toThrow(
-      'OPENAI_PROVIDER must be one of: openai, modelhub',
+      'OPENAI_PROFILE must be one of: openai, compatible',
     );
   });
 
-  it('rejects server response state on the ModelHub provider', async () => {
+  it('fails with a migration message when only the retired OPENAI_PROVIDER is set', async () => {
     setRequiredEnv();
+    delete process.env.OPENAI_PROFILE;
     process.env.OPENAI_PROVIDER = 'modelhub';
+
+    await expect(import('../../src/config.js')).rejects.toThrow(
+      'OPENAI_PROVIDER was replaced by OPENAI_PROFILE',
+    );
+  });
+
+  it('requires an explicit endpoint instead of falling back to a built-in one', async () => {
+    setRequiredEnv();
+    process.env.DOTENV_CONFIG_PATH = '/private/tmp/eveai-test-no-dotenv-file';
+    process.env.OPENAI_PROFILE = 'openai';
+    delete process.env.OPENAI_BASE_URL;
+
+    await expect(import('../../src/config.js')).rejects.toThrow('OPENAI_BASE_URL is required');
+  });
+
+  it('rejects endpoints that leak credentials, downgrade transport, or point past the API root', async () => {
+    const cases: Array<[string, string]> = [
+      ['http://gateway.example/v1', 'must use https'],
+      ['https://key:secret@gateway.example/v1', 'must not embed credentials'],
+      ['https://gateway.example/v1?key=secret', 'must not carry a query string'],
+      ['https://gateway.example/v1/responses', 'the app appends /responses itself'],
+      ['gateway.example/v1', 'must be an absolute URL'],
+    ];
+    for (const [baseUrl, message] of cases) {
+      vi.resetModules();
+      setRequiredEnv();
+      process.env.OPENAI_PROFILE = 'compatible';
+      process.env.OPENAI_BASE_URL = baseUrl;
+
+      await expect(import('../../src/config.js')).rejects.toThrow(message);
+    }
+  });
+
+  it('keeps an http endpoint usable for a loopback proxy', async () => {
+    setRequiredEnv();
+    process.env.OPENAI_PROFILE = 'compatible';
+    process.env.OPENAI_BASE_URL = 'http://localhost:4000/v1';
+
+    expect((await import('../../src/config.js')).config.openai.baseUrl).toBe('http://localhost:4000/v1');
+  });
+
+  it('rejects server response state on a profile without it', async () => {
+    setRequiredEnv();
+    process.env.OPENAI_PROFILE = 'compatible';
     process.env.OPENAI_RESPONSE_STATE_MODE = 'server';
     process.env.OPENAI_STORE_RESPONSES = 'true';
 
     await expect(import('../../src/config.js')).rejects.toThrow(
-      'ModelHub does not support server-side response state; set OPENAI_RESPONSE_STATE_MODE=stateless',
+      'OPENAI_PROFILE=compatible has no server-side response state; set OPENAI_RESPONSE_STATE_MODE=stateless',
     );
   });
 
