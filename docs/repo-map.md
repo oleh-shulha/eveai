@@ -205,6 +205,7 @@ Defensive clients and tool schemas for community APIs (EVE Ref industry cost, zK
 
 ## Deployment And Operations
 
+- `Dockerfile` + `.dockerignore`: two-stage self-build — compile in a Debian build stage, ship compiled output plus production dependencies; the runtime image carries `unzip` (SDE extraction), `procps` (runtime-lock identity check) and tini
 - `deploy/systemd/eveai.service`: generic self-host systemd unit
 - `scripts/export-public.sh`: clean public export helper that excludes local/private state
 - `docs/deployment.md`: generic self-host deployment guide

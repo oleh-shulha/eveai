@@ -1,0 +1,28 @@
+# Build context hygiene: never ship secrets or local state into an image, and
+# never let a host-built artifact shadow what the build stage compiles.
+.env
+.env.*
+!.env.example
+data/
+dist/
+web/dist/
+node_modules/
+**/node_modules/
+
+.git/
+.github/
+.agent/
+.codex/
+.claude/
+
+tests/
+docs/
+deploy/
+scripts/
+skills/
+*.md
+!README.md
+
+npm-debug.log*
+*.tsbuildinfo
+.DS_Store

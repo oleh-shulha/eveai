@@ -183,6 +183,26 @@ npm run dev
 Then open a private chat with your Telegram bot, DM your Discord bot, or set
 `WEB_CHAT_ENABLED=true` and open `http://localhost:3000/app`.
 
+### Docker
+
+```bash
+docker build -t eveai .
+docker run -d --name eveai --env-file .env -p 3000:3000 -v eveai-data:/app/data eveai
+
+# First run only: download and load the EVE static data into the volume.
+docker exec eveai npm run setup:built
+docker restart eveai
+```
+
+The image compiles the server and the browser app itself, runs as a non-root
+user, and carries `unzip`, so both `npm run setup:built` and the in-app SDE
+refresh work inside the container. Everything mutable — SQLite database, the SDE
+snapshot, caches — lives in `/app/data`; mount a volume over it. The image sets
+`HOST=0.0.0.0` (a loopback bind would be unreachable from outside the
+container), so do not override `HOST` in your `.env`. See
+[docs/deployment.md](./docs/deployment.md#docker) for reverse proxy, updates,
+and bind-mount ownership.
+
 For local EVE SSO callbacks, set the callback URL in the EVE Developer Portal to:
 
 ```text

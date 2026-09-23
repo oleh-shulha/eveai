@@ -477,6 +477,54 @@ sessions, EVE links, and feed cursors back to the backup timestamp; the
 EVE-KILL feed resumes from its stored cursor and does not replay events missed
 after it.
 
+## Docker
+
+The repository builds its own image; nothing is published.
+
+```bash
+docker build -t eveai .
+docker run -d --name eveai   --env-file .env   -p 127.0.0.1:3000:3000   -v eveai-data:/app/data   eveai
+```
+
+Two stages: the first installs every dependency, compiles TypeScript to `dist/`
+and the browser app to `web/dist/`, then prunes dev dependencies; the second
+copies that output onto a clean Debian slim base. Debian rather than Alpine
+because `better-sqlite3` publishes glibc prebuilds, and the build stage keeps
+`python3`/`make`/`g++` so a source build still works when no prebuild matches.
+
+The runtime image adds four packages on purpose:
+
+- `unzip` — the SDE archive is extracted by shelling out to it, from both
+  `npm run setup:built` and the in-app refresh button;
+- `procps` — the runtime lock reads a lock owner's process start time with `ps`
+  before refusing to start a second process on the same database;
+- `ca-certificates` — outbound TLS to ESI, CCP static data and the model
+  endpoint;
+- `tini` as the entrypoint, so those short-lived children are reaped and
+  `SIGTERM` reaches the app, which drains in-flight turns before exiting.
+
+Operational notes:
+
+- **State.** `/app/data` holds the SQLite database, the SDE snapshot (~650 MB
+  once loaded), the ESI catalog cache and generated profiles. It is declared as
+  a volume; back it up the same way as a bare-metal `data/`.
+- **First run.** A fresh volume has no static data: `docker exec eveai npm run
+  setup:built` downloads and loads it, then `docker restart eveai` rebuilds the
+  map graph. The `:built` scripts run the compiled loaders, because `tsx` is a
+  dev dependency and is not in the image.
+- **Networking.** The image sets `HOST=0.0.0.0`; a `.env` that pins
+  `HOST=127.0.0.1` makes the container unreachable. Publish to loopback and put
+  a reverse proxy in front for a public deployment, and set `WEB_BASE_URL` to
+  the public URL, not the container's.
+- **Bind mounts.** The container runs as uid 1000 (`node`). A named volume
+  inherits the right ownership; a host bind mount needs
+  `chown -R 1000:1000 ./data` first.
+- **Health.** `HEALTHCHECK` polls `/health` inside the container, so
+  `docker ps` reports the app's own readiness rather than "the process exists".
+- **Updates.** Rebuild the image from the tag you want and recreate the
+  container; the volume carries the state across. The staged release workflow
+  below applies to bare-metal installs.
+
 ## Private Instance
 
 A deployment on a public hostname is open to anyone who finds it. Setting
