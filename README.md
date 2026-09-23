@@ -1,16 +1,25 @@
-<p align="center">
-  <a href="https://eveonline-ai.ru/app"><img src="https://img.shields.io/badge/Live%20instance-eveonline--ai.ru-2ea44f?style=for-the-badge" alt="Live instance" /></a>
-  <img src="https://img.shields.io/badge/EVE%20Online-AI%20Assistant-1a1a2e?style=for-the-badge" alt="EVE AI" />
-  <img src="https://img.shields.io/badge/Telegram-Long%20Polling-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram" />
-  <img src="https://img.shields.io/badge/Discord-Bot-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
-  <img src="https://img.shields.io/badge/TypeScript-Strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-</p>
-
 # EVE AI Agent
 
-> **Landing-page source:** [`index.html`](./index.html). GitHub Pages is optional and is not currently a deployed product endpoint.
+> **This repository is an independent fork of [garshany/eveai](https://github.com/garshany/eveai).**
+> It is maintained separately and is not affiliated with, endorsed by, or supported by the upstream
+> project or its operator. Open issues and pull requests here, not upstream. Upstream runs its own
+> public deployment at [eveonline-ai.ru/app](https://eveonline-ai.ru/app); this fork ships no hosted
+> service — you self-host it.
 
-**Live instance:** [eveonline-ai.ru/app](https://eveonline-ai.ru/app) — the operator's public deployment. Open the browser workspace, link a character over EVE SSO, and try the market AI search; the UI and the agent are bilingual (Russian/English).
+## Differences from upstream
+
+What this fork changes on top of `garshany/eveai`:
+
+- **Any OpenAI-compatible endpoint via `OPENAI_BASE_URL`.** Upstream supports only the official OpenAI
+  endpoint or the fixed ModelHub one. Setting `OPENAI_BASE_URL` overrides the selected provider's
+  default base URL, so the agent can run against any OpenAI Responses-compatible API — an OpenRouter
+  route (Claude, Gemini, Llama, …), a corporate gateway, or a local proxy. Capability flags
+  (truncation, programmatic tool calling, …) are still inherited from `OPENAI_PROVIDER`. See
+  [Required Environment](#required-environment).
+
+Everything below is inherited from upstream and describes the project itself.
+
+> **Landing-page source:** [`index.html`](./index.html). GitHub Pages is optional and is not currently a deployed product endpoint.
 
 Self-hosted, chat-first AI assistant for EVE Online. Run it through the browser, Telegram, Discord DMs, or the terminal CLI; it combines local EVE SDE data, live ESI data, killboard intelligence, route planning, and a Responses-compatible model loop with tool calling.
 
