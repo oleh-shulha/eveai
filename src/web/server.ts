@@ -12,6 +12,7 @@ import { registerAuthRoutes } from './auth-routes.js';
 import { registerExamplesRoutes } from './examples-routes.js';
 import { buildCanonicalLoopbackUrl } from './canonical-origin.js';
 import { registerWebChatRoutes } from './chat-routes.js';
+import { registerCharacterAllowlistGate } from './character-allowlist.js';
 import { registerGateRoutes } from './gate-routes.js';
 import { registerHealthRoute } from './health.js';
 import { registerPrivateGate } from './private-gate.js';
@@ -45,6 +46,9 @@ export async function createServer(db: Db) {
   // browser API until this browser has entered PRIVATE_PASSWORD once.
   registerPrivateGate(app);
   registerGateRoutes(app);
+  // Then: with a character allowlist, only a session holding one of those
+  // characters gets past the session bootstrap and the SSO start.
+  registerCharacterAllowlistGate(app, db);
 
   registerHealthRoute(app, { db });
   registerAuthRoutes(app, db);

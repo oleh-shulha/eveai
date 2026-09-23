@@ -33,6 +33,10 @@ What this fork changes on top of `garshany/eveai`:
   is a signed HttpOnly cookie the browser keeps. The EVE SSO flow, `/health` and the app shell stay open, so a
   login started from Telegram or the CLI still completes in a fresh browser. Wrong attempts are budgeted per
   address, and changing the password locks every browser out again.
+- **A character allowlist for the browser app (`WEB_ALLOWED_CHARACTER_IDS`).** Password aside, the app can be
+  limited to named EVE characters: anyone else gets one honest screen instead of a working app, and EVE SSO
+  refuses to attach an unlisted character to a browser login in the first place — before any token is stored.
+  The session bootstrap and the SSO start stay open so an allowed pilot can link in.
 - **Internet access for the agent (Firecrawl).** Set `FIRECRAWL_URL` and `FIRECRAWL_API_KEY` and the agent gains
   open-web search plus `fetch_web_page`, which reads one public page as Markdown — patch notes, dev blogs, forum
   threads, wikis, third-party tools — and cites it. Upstream can only search snippets through Tavily and never

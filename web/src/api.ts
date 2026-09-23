@@ -84,6 +84,7 @@ function httpErrorMessage(status: number, serverMessage?: string): string {
 }
 
 export const LOCKED_EVENT = 'eveai:locked';
+export const RESTRICTED_EVENT = 'eveai:restricted';
 
 async function request<T>(
   path: string,
@@ -115,6 +116,7 @@ async function request<T>(
     // the unlock cookie expires. One event lets the app show the gate again
     // without every caller having to know about it.
     if (code === 'unlock_required') window.dispatchEvent(new Event(LOCKED_EVENT));
+    if (code === 'character_not_allowed') window.dispatchEvent(new Event(RESTRICTED_EVENT));
     throw new ApiRequestError(response.status, httpErrorMessage(response.status, code ? undefined : payload.error), code);
   }
   if (response.status === 204) return undefined as T;

@@ -14,6 +14,8 @@ import { TurnstileWidget } from './TurnstileWidget';
 type LoginScreenProps = {
   busy: boolean;
   ssoConfigured: boolean;
+  /** The instance only serves an allowlist of characters: no guest path. */
+  restricted?: boolean;
   error: string | null;
   turnstileSiteKey: string | null;
   onConnect: (turnstileToken?: string) => Promise<boolean>;
@@ -26,6 +28,7 @@ type PendingLoginAction = 'connect' | 'guest';
 export function LoginScreen({
   busy,
   ssoConfigured,
+  restricted = false,
   error,
   turnstileSiteKey,
   onConnect,
@@ -115,7 +118,7 @@ export function LoginScreen({
       <section className="login__content" aria-labelledby="login-title">
         <div className="login__copy">
           <h1 id="login-title"><span>{t('loginLine1')}</span><span>{t('loginLine2')}</span></h1>
-          <p>{t('loginLead')}</p>
+          <p>{restricted ? t('accessRestrictedNote') : t('loginLead')}</p>
 
           <div className="login__actions">
             {turnstileSiteKey && turnstileVisible && turnstileState.phase === 'idle' ? (
@@ -133,9 +136,11 @@ export function LoginScreen({
               <TargetIcon size={26} />
               {ssoConfigured ? t('loginEve') : t('ssoMissing')}
             </button>
-            <button className="text-action" type="button" onClick={() => runWithTurnstile('guest')} disabled={busy || turnstileBusy}>
-              {t('guestContinue')}
-            </button>
+            {restricted ? null : (
+              <button className="text-action" type="button" onClick={() => runWithTurnstile('guest')} disabled={busy || turnstileBusy}>
+                {t('guestContinue')}
+              </button>
+            )}
           </div>
 
           {error ? <p className="inline-error" role="alert">{error}</p> : null}

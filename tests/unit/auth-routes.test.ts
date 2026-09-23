@@ -30,7 +30,7 @@ vi.mock('../../src/config.js', () => ({
       path: '/tmp/eve-agent-auth-routes-tests/USER_{chat_id}_{character_id}.md',
       refreshSeconds: 300,
     },
-    web: { baseUrl: 'http://localhost:3000' },
+    web: { baseUrl: 'http://localhost:3000', allowedCharacterIds: [] as number[] },
   },
 }));
 
@@ -44,6 +44,7 @@ vi.mock('../../src/eve/user-profile.js', () => ({
 }));
 
 import Fastify from 'fastify';
+import { config } from '../../src/config.js';
 import { registerAuthRoutes } from '../../src/web/auth-routes.js';
 import { registerHealthRoute } from '../../src/web/health.js';
 import { createAuthRequestToken, recordAuthRequestConsent } from '../../src/auth/auth-request.js';
@@ -270,6 +271,90 @@ describe('auth routes', () => {
     expect(response.json().error).toContain('unexpected scope');
     expect(db.prepare('SELECT 1 FROM eve_accounts WHERE character_id = 95465498').get()).toBeUndefined();
     await app.close();
+  });
+
+  it('refuses a browser login by a character outside the allowlist and stores nothing', async () => {
+    const app = Fastify();
+    registerAuthRoutes(app, db);
+    db.prepare("INSERT INTO users (user_id, display_name) VALUES (1, 'pilot')").run();
+    config.web.allowedCharacterIds = [95465510];
+    const state = createAuthRequestToken(db, 'eve_sso', 1, { redirectUrl: '/app', ttlSeconds: 600 });
+    consentRequest(state, ['esi-location.read_location.v1']);
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: 'stranger-access',
+        refresh_token: 'stranger-refresh',
+        expires_in: 1200,
+        token_type: 'Bearer',
+      }),
+    });
+    jwtVerifyMock.mockResolvedValue({
+      payload: {
+        sub: 'CHARACTER:EVE:95465499',
+        name: 'Stranger',
+        scp: ['esi-location.read_location.v1'],
+        aud: ['test-client', 'EVE Online'],
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/auth/eve/callback?code=abc&state=${encodeURIComponent(state)}`,
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe('http://localhost:3000/app?auth=not_allowed');
+      // The refusal lands before ownership planning, so the exchanged tokens
+      // die with the request instead of reaching the database.
+      expect(db.prepare('SELECT 1 FROM eve_accounts WHERE character_id = 95465499').get()).toBeUndefined();
+      expect(db.prepare('SELECT 1 FROM eve_character_links WHERE character_id = 95465499').get()).toBeUndefined();
+    } finally {
+      config.web.allowedCharacterIds = [];
+      await app.close();
+    }
+  });
+
+  it('links a character that is on the allowlist', async () => {
+    const app = Fastify();
+    registerAuthRoutes(app, db);
+    db.prepare("INSERT INTO users (user_id, display_name) VALUES (1, 'pilot')").run();
+    config.web.allowedCharacterIds = [95465510];
+    const state = createAuthRequestToken(db, 'eve_sso', 1, { redirectUrl: '/app', ttlSeconds: 600 });
+    consentRequest(state, ['esi-location.read_location.v1']);
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: 'owner-access',
+        refresh_token: 'owner-refresh',
+        expires_in: 1200,
+        token_type: 'Bearer',
+      }),
+    });
+    jwtVerifyMock.mockResolvedValue({
+      payload: {
+        sub: 'CHARACTER:EVE:95465510',
+        name: 'Owner',
+        scp: ['esi-location.read_location.v1'],
+        aud: ['test-client', 'EVE Online'],
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/auth/eve/callback?code=abc&state=${encodeURIComponent(state)}`,
+      });
+
+      expect(response.headers.location).toBe('http://localhost:3000/app?auth=connected');
+      expect(db.prepare('SELECT 1 FROM eve_accounts WHERE character_id = 95465510').get()).toBeDefined();
+    } finally {
+      config.web.allowedCharacterIds = [];
+      await app.close();
+    }
   });
 
   it('removes stale private profiles from every lane before reduced scopes become active', async () => {

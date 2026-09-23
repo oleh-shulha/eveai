@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiRequestError, isAmbiguousApiRequestError, LOCKED_EVENT, webApi } from './api';
+import { ApiRequestError, isAmbiguousApiRequestError, LOCKED_EVENT, RESTRICTED_EVENT, webApi } from './api';
 import {
   mergeRequestSnapshot,
   mergeStreamDelta,
@@ -48,6 +48,7 @@ function authResultMessage(): string | null {
   const result = new URLSearchParams(window.location.search).get('auth');
   if (result === 'denied') return 'Вход через EVE отменён.';
   if (result === 'error') return 'Не удалось подключить персонажа. Попробуйте ещё раз.';
+  if (result === 'not_allowed') return 'Этот персонаж не входит в список разрешённых на этом инстансе.';
   return null;
 }
 
@@ -67,6 +68,7 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [locked, setLocked] = useState(false);
+  const [restricted, setRestricted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(authResultMessage);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -131,6 +133,10 @@ export default function App() {
       .then(async (payload) => {
         if (cancelled) return;
         setBootstrap(payload);
+        if (payload.access?.restricted && !payload.access.allowed) {
+          setRestricted(true);
+          return;
+        }
         if (payload.session) {
           await loadConversations();
           await recoverActiveRequest();
@@ -157,8 +163,13 @@ export default function App() {
   // finds out. api.ts raises this once so the gate returns instead of an error.
   useEffect(() => {
     const onLocked = () => setLocked(true);
+    const onRestricted = () => setRestricted(true);
     window.addEventListener(LOCKED_EVENT, onLocked);
-    return () => window.removeEventListener(LOCKED_EVENT, onLocked);
+    window.addEventListener(RESTRICTED_EVENT, onRestricted);
+    return () => {
+      window.removeEventListener(LOCKED_EVENT, onLocked);
+      window.removeEventListener(RESTRICTED_EVENT, onRestricted);
+    };
   }, []);
 
   const sessionActive = Boolean(session);
@@ -518,13 +529,14 @@ export default function App() {
     return <div className="app-loading" aria-label="Загрузка"><span /><span /><span /></div>;
   }
 
-  if (!session) {
+  if (!session || restricted) {
     if (activeView === 'support') {
       return <SupportScreen hasSession={false} onBackToLogin={() => setActiveView('chat')} />;
     }
     return (
       <LoginScreen
         busy={busy}
+        restricted={restricted}
         ssoConfigured={bootstrap?.ssoConfigured ?? false}
         turnstileSiteKey={bootstrap?.turnstileSiteKey ?? null}
         error={error}

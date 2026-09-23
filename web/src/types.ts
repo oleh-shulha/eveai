@@ -13,6 +13,8 @@ export type SessionPayload = {
   } | null;
   ssoConfigured: boolean;
   turnstileSiteKey: string | null;
+  /** Present when the instance restricts which EVE characters may use it. */
+  access?: { restricted: boolean; allowed: boolean };
 };
 
 export type ProfileAvailability = 'available' | 'missing_scope' | 'unavailable';

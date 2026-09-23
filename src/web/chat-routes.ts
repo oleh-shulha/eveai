@@ -35,6 +35,7 @@ import {
   buildWebClientIpKey,
   type WebSession,
 } from './web-session.js';
+import { isCharacterAllowlistEnabled, userHasAllowedCharacter } from './character-allowlist.js';
 import { requireMutationSession, requireSession } from './web-route-guards.js';
 import { WebAgentRequestCoordinator } from './agent-requests.js';
 import { isTurnstileEnabled, verifyTurnstileToken } from './turnstile.js';
@@ -512,6 +513,12 @@ function buildSessionPayload(db: Db, session: WebSession, csrfToken: string) {
     },
     ssoConfigured: isEveSsoConfigured(),
     turnstileSiteKey: isTurnstileEnabled() ? config.web.turnstileSiteKey : null,
+    // The app renders one honest screen for a restricted instance instead of
+    // letting every later call fail with character_not_allowed.
+    access: {
+      restricted: isCharacterAllowlistEnabled(),
+      allowed: userHasAllowedCharacter(db, session.userId),
+    },
   };
 }
 

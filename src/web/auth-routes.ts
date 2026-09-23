@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { rmSync } from 'node:fs';
 import { config } from '../config.js';
+import { isCharacterAllowed } from './character-allowlist.js';
 import type { Db } from '../db/sqlite.js';
 import { deleteCharacterData } from '../db/character-datastore.js';
 import {
@@ -187,6 +188,13 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db): void {
       if (scopes.some((scope) => !requestedScopeSet.has(scope))) {
         return reply.status(403).send({ error: 'EVE SSO granted an unexpected scope. Please start the login flow again.' });
       }
+      // A restricted instance refuses the link before anything is stored: the
+      // exchanged tokens are dropped with this request and the character keeps
+      // no trace here. Chat lanes keep their own allowlists and are unaffected.
+      if (appRedirect && !isCharacterAllowed(characterId)) {
+        log.warn('Browser SSO refused: character %d is not on the web allowlist', characterId);
+        return reply.redirect(buildAppAuthRedirect(appRedirect, 'not_allowed'));
+      }
       const ownerInput = {
         requestedUserId: userId,
         chatId,
@@ -298,7 +306,7 @@ function safeAppRedirect(value: string | null): string | null {
   return null;
 }
 
-function buildAppAuthRedirect(path: string, result: 'connected' | 'denied' | 'error'): string {
+function buildAppAuthRedirect(path: string, result: 'connected' | 'denied' | 'error' | 'not_allowed'): string {
   const url = new URL(path, config.web.baseUrl);
   url.searchParams.set('auth', result);
   return url.toString();

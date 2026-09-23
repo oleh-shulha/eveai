@@ -374,6 +374,9 @@ export const config = {
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean),
+    // EVE character ids allowed to use the browser app at all. Empty = any
+    // character (and any guest). See web/character-allowlist.ts.
+    allowedCharacterIds: parseCharacterIdList('WEB_ALLOWED_CHARACTER_IDS'),
     // EVE character ids allowed to run the operator-only browser controls
     // (static-data refresh). Empty means nobody: these are not user features.
     adminCharacterIds: parseCharacterIdList('WEB_ADMIN_CHARACTER_IDS'),

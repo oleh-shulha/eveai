@@ -509,6 +509,29 @@ correct password is refused.
 This is a lock on the browser app only. Telegram, Discord and the CLI keep their
 own allowlists (`ALLOWED_TELEGRAM_USER_ID`, `ALLOWED_DISCORD_USER_ID`).
 
+### Character allowlist
+
+`PRIVATE_PASSWORD` decides who may reach the app; `WEB_ALLOWED_CHARACTER_IDS`
+(comma-separated EVE character ids) decides whose characters may use it. They are
+independent: either alone works, and together they give "my hostname, my
+characters".
+
+With it set, a browser session must have one of those characters linked. Every
+`/api/web/*` route answers `403 {"error":"character_not_allowed"}` otherwise,
+except the three that lead in: the private gate, the session bootstrap, and the
+EVE SSO start. The app turns that into one screen — "only the owner's characters
+can use this instance" — with the EVE login button and no guest option.
+
+The SSO callback enforces the same list for browser logins: an unlisted
+character is refused right after the token exchange, before any ownership
+planning, token storage or lane merge, so nothing about that character is
+persisted. The browser lands back on `/app?auth=not_allowed`. Chat-lane logins
+(Telegram, Discord, CLI) are not affected — they have their own allowlists.
+
+If you also use the operator panels, keep your own character in both
+`WEB_ALLOWED_CHARACTER_IDS` and `WEB_ADMIN_CHARACTER_IDS`: the access check runs
+first.
+
 ## Internet Access (Firecrawl)
 
 The agent has no way to read the open web unless both `FIRECRAWL_URL` and
