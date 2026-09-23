@@ -119,9 +119,9 @@ describe('OpenAI runtime configuration', () => {
     await expect(import('../../src/config.js')).rejects.toThrow('OPENAI_BASE_URL is required');
   });
 
-  it('rejects endpoints that leak credentials, downgrade transport, or point past the API root', async () => {
+  it('rejects endpoints that leak credentials, break URL building, or point past the API root', async () => {
     const cases: Array<[string, string]> = [
-      ['http://gateway.example/v1', 'must use https'],
+      ['ftp://gateway.example/v1', 'must be an http(s) URL'],
       ['https://key:secret@gateway.example/v1', 'must not embed credentials'],
       ['https://gateway.example/v1?key=secret', 'must not carry a query string'],
       ['https://gateway.example/v1/responses', 'the app appends /responses itself'],
@@ -137,12 +137,12 @@ describe('OpenAI runtime configuration', () => {
     }
   });
 
-  it('keeps an http endpoint usable for a loopback proxy', async () => {
+  it('keeps a plain http endpoint usable for a local or LAN proxy', async () => {
     setRequiredEnv();
     process.env.OPENAI_PROFILE = 'compatible';
-    process.env.OPENAI_BASE_URL = 'http://localhost:4000/v1';
+    process.env.OPENAI_BASE_URL = 'http://192.168.1.10:4000/v1';
 
-    expect((await import('../../src/config.js')).config.openai.baseUrl).toBe('http://localhost:4000/v1');
+    expect((await import('../../src/config.js')).config.openai.baseUrl).toBe('http://192.168.1.10:4000/v1');
   });
 
   it('rejects server response state on a profile without it', async () => {

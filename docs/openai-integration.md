@@ -21,9 +21,9 @@ These defaults follow the current [GPT-5.6 guidance](https://developers.openai.c
 
 `OPENAI_BASE_URL` is the single source of the endpoint: the runtime,
 authenticated smoke, and aggregate smoke all resolve it, and no address is
-built into the code. It is validated at startup as an absolute API root, https
-except for a loopback proxy, without embedded credentials, query, fragment, or
-a trailing `/responses`.
+built into the code. It is checked at startup only for what would otherwise
+break or leak: an absolute http(s) API root, without embedded credentials,
+query, fragment, or a trailing `/responses`.
 
 `OPENAI_PROFILE` is an explicit capability contract for that endpoint, not an
 address. Unknown IDs fail at startup. `compatible` covers any OpenAI-compatible

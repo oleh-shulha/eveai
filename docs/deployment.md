@@ -121,9 +121,10 @@ OPENAI_STORE_RESPONSES=false
 
 `OPENAI_BASE_URL` is required and is the only thing that decides where
 requests go; no endpoint is built into the application. It must be the API root
-(the app appends `/responses`), https except for a loopback proxy, and free of
-embedded credentials, which would otherwise reach every log line that prints
-the endpoint.
+(the app appends `/responses`), http or https, and free of embedded
+credentials, which would otherwise reach every log line that prints the
+endpoint. Nothing else about the address is policed: pointing the app at a
+private or LAN gateway is the operator's call.
 
 `OPENAI_PROFILE` declares what that endpoint supports. `openai` uses the full
 official contract. `compatible` targets any OpenAI-compatible gateway: it omits

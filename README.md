@@ -14,7 +14,8 @@ What this fork changes on top of `garshany/eveai`:
   endpoints and ignores any base URL. Here `OPENAI_BASE_URL` is required and is the only thing that
   decides where requests go, so the agent runs against any OpenAI Responses-compatible API — an
   OpenRouter route (Claude, Gemini, Llama, …), a corporate gateway, or a local proxy. It is validated
-  at startup: absolute API root, https unless loopback, no embedded credentials.
+  at startup only for what would otherwise break or leak: absolute http(s) API root, no embedded
+  credentials. Which host you trust is your call, not the app's.
 - **`OPENAI_PROFILE` replaces `OPENAI_PROVIDER`.** The old variable named a vendor and carried its
   address; the new one declares only what the endpoint supports. `openai` uses the full official
   contract (hosted tool search and Programmatic Tool Calling, `truncation`, encrypted reasoning
@@ -202,7 +203,7 @@ openssl rand -base64 32
 
 Model defaults:
 
-- `OPENAI_BASE_URL` is required and is the only source of the endpoint: the API root of an OpenAI Responses-compatible service, without a trailing `/responses`. It must be https unless it is a loopback proxy, and must not embed credentials — the key belongs in `OPENAI_API_KEY`.
+- `OPENAI_BASE_URL` is required and is the only source of the endpoint: the API root of an OpenAI Responses-compatible service, without a trailing `/responses`. http and https are both accepted, so a local or LAN gateway works; it must not embed credentials, because the key belongs in `OPENAI_API_KEY` and would otherwise land in every log line that prints the endpoint.
 - `OPENAI_PROFILE` declares what that endpoint supports. `openai` enables the full official contract: hosted tool search and Programmatic Tool Calling, `truncation`, encrypted reasoning replay, and `OPENAI_RESPONSE_STATE_MODE=server`. `compatible` sends only the documented core of the Responses API and uses the application-owned substitutes instead — client tool search, the bounded local parallel batch, read subagents on by default — and requires stateless response mode. Pick `compatible` for OpenRouter, ModelHub, LiteLLM, or any other gateway; a gateway that rejects an optional field answers with a 400 rather than degrading quietly.
 - `OPENAI_PROVIDER_NAME` (optional) is the name shown in the startup banner and on the browser consent screen, which tells each user who receives their data. Unset, it falls back to the host of `OPENAI_BASE_URL`.
 - The selected provider and its API key are process-wide operator settings. Browser users never provide or receive this key; each user gets an isolated opaque session and chat lane while requests share the configured concurrency and rate limits.

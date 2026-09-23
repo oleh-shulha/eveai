@@ -102,9 +102,10 @@ function parseBaseUrl(raw: string | undefined): string {
   } catch {
     throw new Error(`OPENAI_BASE_URL must be an absolute URL, got: "${value}"`);
   }
-  const loopback = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
-  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) {
-    throw new Error('OPENAI_BASE_URL must use https; http is allowed only for a loopback proxy');
+  // http stays allowed: a gateway on the operator's own machine or LAN is a
+  // supported setup, and which transport is acceptable is the operator's call.
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new Error(`OPENAI_BASE_URL must be an http(s) URL, got: "${value}"`);
   }
   // The key travels in the Authorization header. A URL-embedded credential
   // would additionally reach every request log line that prints the endpoint.
