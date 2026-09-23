@@ -512,6 +512,26 @@ the upstream validators the freshness check compares against. The build number
 changes only when the archive does, which is what makes the map-graph rebuild
 trigger reliable.
 
+## Market Snapshot
+
+The local order book (`market_orders`) is refreshed by the in-process worker
+every five minutes, two-tier: a region is refetched only once its tier interval
+has passed, and never inside ESI's own five-minute cache window. Failures leave
+the previous snapshot serving and surface as a growing age.
+
+**Settings → Market snapshot** (same `WEB_ADMIN_CHARACTER_IDS` allowlist) shows
+the snapshot time and age, its row count, how many regions are stale or errored,
+the last sweep error, and whether a sweep is walking ESI right now — a scheduled
+one included. *Load now* starts a sweep that treats every region as due,
+ignoring the tier intervals. ESI's cache window still applies, so a forced run
+moments after a scheduled one honestly reports that nothing was due instead of
+claiming a refresh. One sweep runs at a time; the button answers 409 while
+another is in flight, because two sweeps would refill the same staging table
+under each other.
+
+With `MARKET_SNAPSHOT_ENABLED=false` the scheduled worker never starts and this
+button is the only way to fill the snapshot; the panel says so.
+
 ## Updating
 
 All chat surfaces are read-only with respect to project updates. Check the

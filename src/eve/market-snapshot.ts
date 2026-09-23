@@ -48,9 +48,44 @@ const BOOT_LOAD_JITTER_MS = 15_000;
 let cronJob: Cron | null = null;
 let bootTimer: NodeJS.Timeout | null = null;
 // The single-flight guard for both sweep entry points; see the module header.
-let sweepInFlight: Promise<void> | null = null;
+let sweepInFlight: Promise<MarketSweepOutcome> | null = null;
 
 export type MarketSnapshotTickDeps = LoadMarketSnapshotOptions;
+
+/** What one tick actually did, so an operator-triggered sweep can report it. */
+export type MarketSweepOutcome =
+  | { kind: 'skipped' }
+  | { kind: 'not_due' }
+  | { kind: 'no_regions' }
+  | {
+      kind: 'committed';
+      rowsLoaded: number;
+      regionsFetched: number;
+      regionsCarriedOver: number;
+      malformedRows: number;
+      regionErrors: number;
+    }
+  | { kind: 'failed'; error: string };
+
+export type ForcedMarketSweepState = {
+  status: 'idle' | 'running' | 'committed' | 'not_due' | 'failed';
+  startedAt: string | null;
+  finishedAt: string | null;
+  rowsLoaded: number | null;
+  regionsFetched: number | null;
+  error: string | null;
+};
+
+const IDLE_FORCED_STATE: ForcedMarketSweepState = {
+  status: 'idle',
+  startedAt: null,
+  finishedAt: null,
+  rowsLoaded: null,
+  regionsFetched: null,
+  error: null,
+};
+
+let forcedState: ForcedMarketSweepState = { ...IDLE_FORCED_STATE };
 
 function defaultDeps(db: Db): MarketSnapshotTickDeps {
   return {
@@ -113,32 +148,105 @@ export async function stopMarketSnapshotWorker(): Promise<void> {
   console.log('[market-snapshot] Stopped');
 }
 
-export async function runMarketSnapshotTick(db: Db, deps: MarketSnapshotTickDeps = defaultDeps(db)): Promise<void> {
+export async function runMarketSnapshotTick(
+  db: Db,
+  deps: MarketSnapshotTickDeps = defaultDeps(db),
+): Promise<MarketSweepOutcome> {
   if (sweepInFlight) {
     // A sweep is already running (cron tick or boot timer): skip rather than
     // queue — the next cron tick is five minutes away regardless.
     console.log('[market-snapshot] Sweep already in flight; skipping this tick');
-    return;
+    return { kind: 'skipped' };
   }
   const sweep = sweepOnce(db, deps);
   sweepInFlight = sweep;
   try {
-    await sweep;
+    return await sweep;
   } finally {
     if (sweepInFlight === sweep) sweepInFlight = null;
   }
 }
 
-async function sweepOnce(db: Db, deps: MarketSnapshotTickDeps): Promise<void> {
+export function isMarketSnapshotSweepInFlight(): boolean {
+  return sweepInFlight !== null;
+}
+
+export function getForcedMarketSweepState(): ForcedMarketSweepState {
+  return { ...forcedState };
+}
+
+/** Test seam: the forced-sweep state is a process-wide singleton. */
+export function resetForcedMarketSweepStateForTests(): void {
+  forcedState = { ...IDLE_FORCED_STATE };
+}
+
+/**
+ * Operator-triggered sweep: every region counts as due regardless of its tier
+ * interval. ESI's own 5-minute order-book cache still holds — a region fetched
+ * seconds ago stays carried over, and a forced run right after a scheduled one
+ * honestly reports that nothing was due instead of re-fetching.
+ *
+ * Fire-and-forget: a whole-New-Eden walk takes minutes, so the caller gets the
+ * state and polls it.
+ */
+export function startForcedMarketSnapshotSweep(
+  db: Db,
+  deps?: MarketSnapshotTickDeps,
+): { started: boolean; state: ForcedMarketSweepState } {
+  if (sweepInFlight) return { started: false, state: getForcedMarketSweepState() };
+
+  forcedState = {
+    ...IDLE_FORCED_STATE,
+    status: 'running',
+    startedAt: new Date().toISOString(),
+  };
+  const forcedDeps: MarketSnapshotTickDeps = deps
+    ?? { ...defaultDeps(db), majorIntervalMinutes: 0, minorIntervalMinutes: 0 };
+
+  void runMarketSnapshotTick(db, forcedDeps).then((outcome) => {
+    forcedState = { ...describeOutcome(outcome), startedAt: forcedState.startedAt };
+  });
+
+  return { started: true, state: getForcedMarketSweepState() };
+}
+
+function describeOutcome(outcome: MarketSweepOutcome): ForcedMarketSweepState {
+  const finishedAt = new Date().toISOString();
+  if (outcome.kind === 'committed') {
+    return {
+      status: 'committed',
+      startedAt: null,
+      finishedAt,
+      rowsLoaded: outcome.rowsLoaded,
+      regionsFetched: outcome.regionsFetched,
+      error: null,
+    };
+  }
+  if (outcome.kind === 'failed') {
+    return { ...IDLE_FORCED_STATE, status: 'failed', finishedAt, error: outcome.error };
+  }
+  if (outcome.kind === 'no_regions') {
+    return {
+      ...IDLE_FORCED_STATE,
+      status: 'failed',
+      finishedAt,
+      error: 'no k-space trade regions in the local SDE',
+    };
+  }
+  // 'not_due' and 'skipped' both mean "nothing was fetched right now".
+  return { ...IDLE_FORCED_STATE, status: 'not_due', finishedAt };
+}
+
+async function sweepOnce(db: Db, deps: MarketSnapshotTickDeps): Promise<MarketSweepOutcome> {
   try {
     if (deps.regions.length === 0) {
       recordSnapshotError(db, 'Local SDE has no stargate geography; cannot determine k-space trade regions.');
-      return;
+      return { kind: 'no_regions' };
     }
     const startedAt = Date.now();
     const result = await loadMarketSnapshotFromEsi(db, deps);
     if (!result.swept) {
-      return; // No region was due; zero ESI calls made.
+      return { kind: 'not_due' }; // No region was due; zero ESI calls made.
     }
     console.log(
       '[market-snapshot] Sweep committed: %d rows in %ds (%d regions fetched, %d carried over, %d malformed skipped)',
@@ -151,9 +259,18 @@ async function sweepOnce(db: Db, deps: MarketSnapshotTickDeps): Promise<void> {
     for (const failure of result.regionErrors) {
       console.error('[market-snapshot] region %d keeps previous rows: %s', failure.regionId, failure.error);
     }
+    return {
+      kind: 'committed',
+      rowsLoaded: result.rowsLoaded,
+      regionsFetched: result.regionsFetched,
+      regionsCarriedOver: result.regionsCarriedOver,
+      malformedRows: result.malformedRows,
+      regionErrors: result.regionErrors.length,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     recordSnapshotError(db, message);
     console.error('[market-snapshot] sweep failed, keeping previous snapshot:', message);
+    return { kind: 'failed', error: message };
   }
 }

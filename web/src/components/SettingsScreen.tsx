@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiRequestError, webApi } from '../api';
 import { LocaleSwitch, useI18n } from '../i18n';
 import { MenuIcon } from '../icons';
+import { MarketSnapshotPanel } from './settings/MarketSnapshotPanel';
 import { SdePanel } from './settings/SdePanel';
 import type { ModelPricing, ModelSettingsPayload } from '../types';
 
@@ -180,6 +181,7 @@ export function SettingsScreen({ csrfToken, onMenu }: Props) {
           </select>
         </section>
         <SdePanel csrfToken={csrfToken} />
+        <MarketSnapshotPanel csrfToken={csrfToken} />
         <div className="settings-actions">
           <button className="button button--primary" type="button" disabled={saving || !dirty || locked} onClick={() => void save()}>
             {saving ? t('settingsSaving') : t('settingsSave')}

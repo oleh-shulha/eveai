@@ -67,6 +67,7 @@ Use it when you need to find the right file or folder before reading implementat
 - `route-planner.ts`, `killmail.ts`: higher-level EVE features
 - `eve-scout-client.ts`, `eve-scout-executor.ts`, `eve-scout-tools.ts`: fixed public EVE-Scout transport, bounded projections, and deferred tool schemas; see `docs/eve-scout.md`
 - `market-history-summary.ts`: bounded 30/90-day public ESI market aggregation without raw daily rows
+- `market-snapshot.ts`: the scheduled ESI order-book sweep (5-minute cron plus a jittered boot sweep), single-flight across both entry points, and the operator-forced sweep that zeroes the tier intervals while still honouring ESI's own cache window
 - `market-wide-summary.ts`: whole-New-Eden live order-book sweep for one type across all SDE-derived k-space trade regions, with explicit coverage reporting
 - `market-queries.ts`: read-only queries over the local `market_orders` snapshot with SDE joins — type search, overview/spread, paged order book, per-region comparison, market-group tree
 - `market-type-info.ts`: full SDE item card for the web market — localized description, traits, grouped dogma attributes with units, required skills, meta-chain variations
@@ -172,6 +173,8 @@ Defensive clients and tool schemas for community APIs (EVE Ref industry cost, zK
 - `market-ai-search-routes.ts`: `/api/web/market/ai-search` natural-language item picking via the light agent runner (`src/agent/market-ai-search.ts`, sde_sql + batch_market_prices, bounded budget), usage recorded to `usage_events` as channel `web`
 - `market-alert-routes.ts`: `/api/web/market/alerts*` price-alert CRUD and fired-event feed
 - `profile-routes.ts` + `profile-data.ts`: `/api/web/profile/` living-profile reads over the character_* datastore (SQL-side asset rollup, regional valuation, price-book age) plus the CSRF-protected manual sync with an overall deadline
+- `market-snapshot-routes.ts`: `/api/web/settings/market-snapshot` — operator-only snapshot summary (age, rows, stale/errored region counts, whether a sweep is in flight) and the forced sweep start
+- `operator-access.ts`: the `WEB_ADMIN_CHARACTER_IDS` gate shared by the operator-only route modules
 - `sde-routes.ts`: `/api/web/settings/sde` — operator-only static-data status, freshness check against CCP, and refresh start; access is the `WEB_ADMIN_CHARACTER_IDS` allowlist matched against the session's linked characters
 - `map-routes.ts`: `/api/web/map/` — status (graph readiness, missing scope, limits), bubble and system reads, risk-weighted routing, the Perimeter chat thread, and the SSE stream that owns the live position poll and releases it on abort
 - `transparency.ts`: public aggregate spend/infrastructure snapshot and session-gated personal spend

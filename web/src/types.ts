@@ -536,6 +536,34 @@ export type SdeStatusPayload = {
   job?: SdeRefreshState;
 };
 
+export type ForcedMarketSweepState = {
+  status: 'idle' | 'running' | 'committed' | 'not_due' | 'failed';
+  startedAt: string | null;
+  finishedAt: string | null;
+  rowsLoaded: number | null;
+  regionsFetched: number | null;
+  error: string | null;
+};
+
+/** Operator-only market snapshot status; `admin: false` hides the panel. */
+export type MarketSnapshotAdminPayload = {
+  ok: true;
+  admin: boolean;
+  snapshot?: {
+    loaded: boolean;
+    status: string;
+    snapshotTime: string | null;
+    ageMinutes: number | null;
+    stale: boolean;
+    rowsLoaded: number | null;
+    lastError: string | null;
+    regions: { total: number; stale: number; withErrors: number };
+  };
+  workerEnabled?: boolean;
+  sweepInFlight?: boolean;
+  job?: ForcedMarketSweepState;
+};
+
 export type ShowcaseExample = {
   id: string;
   category: string;

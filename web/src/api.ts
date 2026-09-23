@@ -22,6 +22,7 @@ import type {
   MapRouteResponse,
   MapStatus,
   ModelSettingsPayload,
+  MarketSnapshotAdminPayload,
   SdeStatusPayload,
   PerimeterMessage,
   MyTransparency,
@@ -346,6 +347,12 @@ export const webApi = {
   getExamples: () => request<{ examples: ShowcaseExample[] }>('/api/web/examples'),
   getTransparency: () => request<TransparencyPayload>('/api/web/transparency'),
   getMyTransparency: () => request<MyTransparency>('/api/web/transparency/me'),
+  getMarketSnapshotAdmin: () => request<MarketSnapshotAdminPayload>('/api/web/settings/market-snapshot'),
+  refreshMarketSnapshot: (csrfToken: string) => request<MarketSnapshotAdminPayload>(
+    '/api/web/settings/market-snapshot/refresh',
+    { method: 'POST' },
+    csrfToken,
+  ),
   getSdeStatus: () => request<SdeStatusPayload>('/api/web/settings/sde'),
   checkSdeFreshness: (csrfToken: string) => request<SdeStatusPayload>(
     '/api/web/settings/sde/check',

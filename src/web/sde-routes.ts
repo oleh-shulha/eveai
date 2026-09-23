@@ -1,5 +1,4 @@
 import type { FastifyInstance } from 'fastify';
-import { config } from '../config.js';
 import type { Db } from '../db/sqlite.js';
 import {
   checkSdeFreshness,
@@ -8,33 +7,17 @@ import {
   readLocalSdeSnapshot,
   startSdeRefresh,
 } from '../eve/sde-refresh.js';
+import { isOperatorSession } from './operator-access.js';
 import { requireMutationSession, requireSession } from './web-route-guards.js';
 
 /**
- * Operator-only static-data controls under /api/web/settings/sde.
- *
- * The browser has no general admin role, so access is an explicit allowlist of
- * EVE character ids (WEB_ADMIN_CHARACTER_IDS) matched against the characters
- * linked to the session's user. An empty allowlist means nobody: a ~100 MB
- * download plus a full table reload is not something a signed-in stranger gets
- * to trigger. Non-operators are told `admin: false` and see no panel; the
- * mutations answer 403 regardless of what the client renders.
+ * Operator-only static-data controls under /api/web/settings/sde. Access is
+ * the allowlist in operator-access.ts: non-operators are told `admin: false`
+ * and see no panel, and the mutations answer 403 regardless of what the client
+ * chose to render.
  */
 
 type SdeStatusPayload = ReturnType<typeof buildStatusPayload>;
-
-function isAdminSession(db: Db, userId: number): boolean {
-  const ids = config.web.adminCharacterIds;
-  if (ids.length === 0) return false;
-  const placeholders = ids.map(() => '?').join(', ');
-  const owned = db.prepare(
-    `SELECT 1 FROM eve_accounts WHERE user_id = ? AND character_id IN (${placeholders}) LIMIT 1`,
-  ).get(userId, ...ids);
-  if (owned) return true;
-  return Boolean(db.prepare(
-    `SELECT 1 FROM eve_character_links WHERE user_id = ? AND character_id IN (${placeholders}) LIMIT 1`,
-  ).get(userId, ...ids));
-}
 
 function countRows(db: Db, table: string): number {
   try {
@@ -67,14 +50,14 @@ export function registerSdeRoutes(app: FastifyInstance, db: Db): void {
   app.get('/api/web/settings/sde', async (request, reply): Promise<SdeStatusPayload | { ok: true; admin: false }> => {
     const session = requireSession(db, request, reply);
     if (!session) return undefined as never;
-    if (!isAdminSession(db, session.userId)) return { ok: true, admin: false };
+    if (!isOperatorSession(db, session.userId)) return { ok: true, admin: false };
     return buildStatusPayload(db);
   });
 
   app.post('/api/web/settings/sde/check', async (request, reply) => {
     const session = requireMutationSession(db, request, reply);
     if (!session) return;
-    if (!isAdminSession(db, session.userId)) {
+    if (!isOperatorSession(db, session.userId)) {
       return reply.status(403).send({ error: 'operator_required' });
     }
     try {
@@ -90,7 +73,7 @@ export function registerSdeRoutes(app: FastifyInstance, db: Db): void {
   app.post('/api/web/settings/sde/refresh', async (request, reply) => {
     const session = requireMutationSession(db, request, reply);
     if (!session) return;
-    if (!isAdminSession(db, session.userId)) {
+    if (!isOperatorSession(db, session.userId)) {
       return reply.status(403).send({ error: 'operator_required' });
     }
     const { started } = startSdeRefresh(db);

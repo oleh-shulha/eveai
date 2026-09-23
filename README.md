@@ -28,6 +28,9 @@ What this fork changes on top of `garshany/eveai`:
   `WEB_ADMIN_CHARACTER_IDS` allowlist of EVE character ids; empty means nobody. Upstream can only do this on the
   host with `npm run setup` plus a restart. The snapshot's build number now comes from the archive's own ETag
   instead of the load date, so a same-day reload no longer leaves the map built from the previous universe.
+- **Market snapshot controls in the same panel.** Snapshot age, row count, stale and errored region counts, the
+  last sweep error, and whether a sweep is running right now — plus a *Load now* button that treats every region
+  as due while still respecting ESI's five-minute cache window.
 - **`OPENAI_PROVIDER_NAME` names the recipient of user data.** The browser consent screen and the
   startup banner show it; unset, it falls back to the host of `OPENAI_BASE_URL` instead of a vendor
   label that may no longer be true. See [Required Environment](#required-environment).
