@@ -113,6 +113,7 @@ For a public SSO callback, use HTTPS, set the callback URL exactly in the EVE De
 
 - **Perimeter live map:** an ego-centric graph of the systems around your pilot where the ring index *is* the jump distance, with live kill activity, explainable danger scoring, gate-camp detection, wormhole shortcuts, risk-weighted routing, and an agent chat that warns you unprompted — pursuit, camps on the next hop, and hulls that out-class yours.
 - Optional internet access: open-web search and single-page reading through Firecrawl, with an operator kill switch.
+- Optional access control for the browser app: a shared unlock password and an EVE character allowlist, with the SSO flow left reachable.
 - Natural-language Telegram and Discord assistant for EVE Online questions and workflows.
 - Same-origin browser chat with anonymous sessions, conversation history, optional EVE SSO, and the same guarded agent/tool loop.
 - Browser market workspace: regional order books, SDE item cards, market history and alerts, and a natural-language AI item search.
@@ -208,7 +209,7 @@ OPENAI_PROGRAMMATIC_TOOL_CALLING=false
 OPENAI_REASONING_EFFORT=auto
 OPENAI_REASONING_MODE=standard
 OPENAI_TEXT_VERBOSITY=low
-OPENAI_RESPONSES_TIMEOUT_MS=90000
+OPENAI_RESPONSES_TIMEOUT_MS=300000
 OPENAI_RESPONSE_LANGUAGE=Russian
 EVE_CLIENT_ID=...
 EVE_CLIENT_SECRET=...
@@ -226,6 +227,32 @@ Generate `AUTH_SECRET_KEY` with:
 openssl rand -base64 32
 ```
 
+Optional, and specific to this fork — all four default to off:
+
+```env
+# Close a public deployment: one shared password in front of the browser API.
+PRIVATE_PASSWORD=                     # >= 8 chars, needs AUTH_SECRET_KEY
+PRIVATE_UNLOCK_TTL_HOURS=720          # how long one unlock lasts
+# Only these EVE characters may use the browser app (comma-separated ids).
+WEB_ALLOWED_CHARACTER_IDS=
+# These characters additionally see the operator panels (SDE, market, web access).
+WEB_ADMIN_CHARACTER_IDS=
+# Internet access for the agent: open-web search plus reading one page.
+FIRECRAWL_URL=                        # service root, no /v1 or /v2 suffix
+FIRECRAWL_API_KEY=
+```
+
+Access control:
+
+- `PRIVATE_PASSWORD` locks the browser API: every `/api/web/*` call answers `unlock_required` until the visitor enters the password once, and the unlock is a signed HttpOnly cookie. `/health`, the app shell and the whole EVE SSO flow stay reachable, so a login started in Telegram or the CLI still completes. Rotating the password locks every browser out again.
+- `WEB_ALLOWED_CHARACTER_IDS` restricts the app to named characters: anyone else gets one screen saying so, and EVE SSO refuses to attach an unlisted character to a browser login before any token is stored. Chat lanes keep their own allowlists (`ALLOWED_TELEGRAM_USER_ID`, `ALLOWED_DISCORD_USER_ID`).
+- `WEB_ADMIN_CHARACTER_IDS` is a separate, narrower list for the operator panels. Empty means nobody. Put your own character in both lists when you use both.
+
+Internet access:
+
+- `FIRECRAWL_URL` + `FIRECRAWL_API_KEY` give the agent `fetch_web_page` (one public page as Markdown) and make `web_search` answer from Firecrawl's index. Without them the agent has no way to read the web.
+- Tuning: `FIRECRAWL_TIMEOUT_MS`, `FIRECRAWL_MAX_CONTENT_CHARS`, `FIRECRAWL_MAX_FETCHES_PER_TURN`, `FIRECRAWL_MAX_SEARCH_RESULTS`. Loopback and private addresses are refused before egress, and an operator can switch the access off at runtime from Settings.
+
 Model defaults:
 
 - `OPENAI_BASE_URL` is required and is the only source of the endpoint: the API root of an OpenAI Responses-compatible service, without a trailing `/responses`. http and https are both accepted, so a local or LAN gateway works; it must not embed credentials, because the key belongs in `OPENAI_API_KEY` and would otherwise land in every log line that prints the endpoint.
@@ -239,7 +266,7 @@ Model defaults:
 - `OPENAI_REASONING_EFFORT=auto` preserves EVE Agent's goal-based `low|medium|high` routing. Set `none`, `low`, `medium`, `high`, `xhigh`, or `max` to override it globally.
 - `OPENAI_REASONING_MODE=standard` is the normal path. Set `pro` only for difficult quality-first workloads that justify higher latency and token use; Pro is a mode, not a separate model name.
 - `OPENAI_TEXT_VERBOSITY=low` keeps chat answers compact; set `medium` if your community wants longer explanations.
-- `OPENAI_RESPONSES_TIMEOUT_MS=90000` controls the Responses transport deadline; raise it deliberately when evaluating Pro.
+- `OPENAI_RESPONSES_TIMEOUT_MS=300000` controls the Responses transport deadline (10s..900s); raise it deliberately when evaluating Pro.
 - `OPENAI_RESPONSE_LANGUAGE=Russian` sets the default final-answer language. Aliases like `ru`, `русский`, `en`, `English`, and custom language names are accepted; an explicit user request can override it per answer.
 
 These are process-wide self-hosting controls shared by Telegram, Discord, and CLI. They are not per-chat preferences. See [OpenAI integration](./docs/openai-integration.md) and OpenAI's [GPT-5.6 guide](https://developers.openai.com/api/docs/guides/latest-model).
