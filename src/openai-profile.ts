@@ -74,7 +74,7 @@ function parseProfileId(env: Record<string, string | undefined>): OpenAiProfileI
   if (!raw) {
     // The old variable named a vendor and carried its endpoint. Migrating it
     // silently would point a compatibility profile at OpenAI's capabilities.
-    if (env.OPENAI_PROVIDER !== undefined) {
+    if (env.OPENAI_PROVIDER !== undefined && env.OPENAI_PROVIDER !== '') {
       throw new Error(
         'OPENAI_PROVIDER was replaced by OPENAI_PROFILE (openai | compatible) plus an explicit OPENAI_BASE_URL; '
         + 'the former modelhub provider is OPENAI_PROFILE=compatible with that gateway URL',
