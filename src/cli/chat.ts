@@ -39,6 +39,7 @@ import { setRouteMonitorSender } from '../eve/route-planner.js';
 import { restoreMonitors, shutdownRouteMonitors } from '../eve-board/monitor.js';
 import { startEveKillFeedPoller, stopEveKillFeedPoller } from '../eve-kill/feed-poll.js';
 import { acquireRuntimeLock } from '../runtime/process-lock.js';
+import { loadWebAccessFlag } from '../agent/web-access.js';
 import { checkForProjectUpdate } from '../update/check.js';
 import { formatUpdateStatus } from '../update/format.js';
 import { getAppVersion } from '../update/version.js';
@@ -118,6 +119,7 @@ async function main(): Promise<void> {
   const runtimeLock = acquireRuntimeLock(config.db.path, 'interactive CLI');
   const db: Db = initDb(config.db.path);
   runMigrations(db);
+  loadWebAccessFlag(db);
 
   // Check the two pillars independently: items (sde_types) power market/price
   // lookups, universe (sde_systems) powers routes. A partial load can leave one

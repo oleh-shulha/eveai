@@ -89,6 +89,29 @@ function optionalUsdAmount(name: string, fallback: number): number {
   return Number(trimmed);
 }
 
+/**
+ * Base URL of the Firecrawl service. Empty means "no web access configured".
+ * A pasted `/v1` or `/v2` suffix is dropped: the client appends the version
+ * itself, and leaving it would silently build `/v2/v2/scrape`.
+ */
+function parseFirecrawlBaseUrl(name: string): string {
+  const raw = process.env[name]?.trim().replace(/\/+$/, '') ?? '';
+  if (!raw) return '';
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`${name} must be an absolute URL, got: "${raw}"`);
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new Error(`${name} must be an http(s) URL, got: "${raw}"`);
+  }
+  if (url.username || url.password) {
+    throw new Error(`${name} must not embed credentials; pass the key in FIRECRAWL_API_KEY`);
+  }
+  return raw.replace(/\/v[12]$/, '');
+}
+
 /** Strict comma-separated EVE character id list; junk fails at startup. */
 function parseCharacterIdList(name: string): number[] {
   const raw = process.env[name];
@@ -459,6 +482,19 @@ export const config = {
   },
   tavily: {
     apiKey: optional('TAVILY_API_KEY', ''),
+  },
+  // Firecrawl gives the agent its only way to read an arbitrary web page.
+  // Both values must be set for the tools to exist at all; an operator can
+  // still switch it off at runtime from the browser (see web-access.ts).
+  firecrawl: {
+    baseUrl: parseFirecrawlBaseUrl('FIRECRAWL_URL'),
+    apiKey: optional('FIRECRAWL_API_KEY', ''),
+    timeoutMs: boundedPositiveInt('FIRECRAWL_TIMEOUT_MS', 25_000, 2_000, 120_000),
+    // The fetched page shares the turn's context budget with everything else,
+    // so a long article is truncated rather than allowed to crowd it out.
+    maxContentChars: boundedPositiveInt('FIRECRAWL_MAX_CONTENT_CHARS', 12_000, 1_000, 60_000),
+    maxFetchesPerTurn: boundedPositiveInt('FIRECRAWL_MAX_FETCHES_PER_TURN', 3, 1, 10),
+    maxSearchResults: boundedPositiveInt('FIRECRAWL_MAX_SEARCH_RESULTS', 5, 1, 10),
   },
   // Community-run EVE APIs (EVE Ref, zKillboard, MutaMarket, Janice). One
   // shared retry/timeout budget: these are best-effort enrichments, so the

@@ -536,6 +536,18 @@ export type SdeStatusPayload = {
   job?: SdeRefreshState;
 };
 
+/** Operator-only web-access (Firecrawl) switch; `admin: false` hides the panel. */
+export type WebAccessPayload = {
+  ok: true;
+  admin: boolean;
+  state?: {
+    configured: boolean;
+    allowed: boolean;
+    enabled: boolean;
+    endpointHost: string | null;
+  };
+};
+
 export type ForcedMarketSweepState = {
   status: 'idle' | 'running' | 'committed' | 'not_due' | 'failed';
   startedAt: string | null;

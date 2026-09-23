@@ -22,6 +22,7 @@ import { registerProfileRoutes } from './profile-routes.js';
 import { registerSecurityHeaders } from './security.js';
 import { registerSdeRoutes } from './sde-routes.js';
 import { registerSettingsRoutes } from './settings-routes.js';
+import { registerWebAccessRoutes } from './web-access-routes.js';
 
 export async function createServer(db: Db) {
   const app = Fastify({
@@ -48,6 +49,7 @@ export async function createServer(db: Db) {
     registerSettingsRoutes(app, db);
     registerSdeRoutes(app, db);
     registerMarketSnapshotAdminRoutes(app, db);
+    registerWebAccessRoutes(app, db);
     registerProfileRoutes(app, db);
     registerMapRoutes(app, db, agentRequests);
     registerExamplesRoutes(app);

@@ -253,6 +253,14 @@ CREATE TABLE IF NOT EXISTS plan_steps (
   PRIMARY KEY (request_id, step_id)
 );
 
+-- Operator runtime switches that must survive a restart (currently only the
+-- web-access kill switch). Absent row = the default for that flag.
+CREATE TABLE IF NOT EXISTS operator_flags (
+  flag_key   TEXT PRIMARY KEY,
+  enabled    INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS sde_meta (
   build_number TEXT PRIMARY KEY,
   loaded_at    TEXT NOT NULL DEFAULT (datetime('now')),

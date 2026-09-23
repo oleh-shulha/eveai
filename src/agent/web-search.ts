@@ -1,16 +1,45 @@
 import { config } from '../config.js';
+import { firecrawlSearch } from './firecrawl.js';
+import { isWebAccessEnabled } from './web-access.js';
 
 const WEB_SEARCH_TIMEOUT_MS = 8000;
 const MAX_WEB_SEARCHES_PER_TURN = 2;
 
 export type WebSearchState = {
   normalizedQueries: string[];
+  fetchedUrls: string[];
   eveKillCallCount: number;
   eveKillAnalyticsCallCount: number;
 };
 
 export function createWebSearchState(): WebSearchState {
-  return { normalizedQueries: [], eveKillCallCount: 0, eveKillAnalyticsCallCount: 0 };
+  return { normalizedQueries: [], fetchedUrls: [], eveKillCallCount: 0, eveKillAnalyticsCallCount: 0 };
+}
+
+/**
+ * Per-turn budget for reading whole pages. Each fetch costs a provider call and
+ * a large slice of the context window, so a turn gets a handful and never the
+ * same page twice.
+ */
+export function registerWebFetch(
+  state: WebSearchState,
+  url: string,
+): { allowed: boolean; reason: string | null } {
+  const normalized = url.trim().replace(/[#?].*$/, '').replace(/\/$/, '').toLowerCase();
+  if (state.fetchedUrls.includes(normalized)) {
+    return {
+      allowed: false,
+      reason: 'Эта страница уже прочитана в этом ответе. Используй полученный текст.',
+    };
+  }
+  if (state.fetchedUrls.length >= config.firecrawl.maxFetchesPerTurn) {
+    return {
+      allowed: false,
+      reason: `Достигнут лимит чтения страниц на один ответ (${config.firecrawl.maxFetchesPerTurn}). Ответь по уже собранным источникам или скажи, чего не хватило.`,
+    };
+  }
+  state.fetchedUrls.push(normalized);
+  return { allowed: true, reason: null };
 }
 
 export function registerWebSearch(
@@ -69,6 +98,9 @@ export async function executeWebSearch(query: string): Promise<{ ok: boolean; re
 
   const tavilyKey = config.tavily?.apiKey;
   const searches = [
+    // Firecrawl first when the operator configured it: it indexes the open web,
+    // while the wiki fallback only knows EVE University.
+    ...(isWebAccessEnabled() ? [firecrawlSearch(query).then((result) => result.results)] : []),
     ...(tavilyKey ? [fetchTavily(query, tavilyKey)] : []),
     fetchEveUni(query),
   ];

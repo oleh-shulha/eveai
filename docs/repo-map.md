@@ -31,6 +31,9 @@ Use it when you need to find the right file or folder before reading implementat
 - `tools.ts`: model-visible tool schema surface
 - `tools/sde-execution.ts`, `tools/sde-schema.ts`: read-only SDE SQL validation/execution and prompt schema
 - `tools/character-execution.ts`, `tools/character-sql-tool.ts`, `tools/character-schema.ts`: character_sql — read-only SQL over the synced private profile, isolated per active character through per-query TEMP views
+- `firecrawl.ts`: the only path to an arbitrary web page — bounded Firecrawl search/scrape with a public-address guard, a content budget, and status-only error text
+- `web-access.ts`: whether the web tools exist this turn — `.env` configuration plus the stored operator kill switch (`operator_flags`)
+- `web-search.ts`: per-turn search/fetch budgets and the search fan-out (Firecrawl, optional Tavily, EVE University wiki)
 - `market-context.ts`, `model.ts`: supporting runtime context
 
 ### `src/auth/`
@@ -175,6 +178,7 @@ Defensive clients and tool schemas for community APIs (EVE Ref industry cost, zK
 - `profile-routes.ts` + `profile-data.ts`: `/api/web/profile/` living-profile reads over the character_* datastore (SQL-side asset rollup, regional valuation, price-book age) plus the CSRF-protected manual sync with an overall deadline
 - `market-snapshot-routes.ts`: `/api/web/settings/market-snapshot` — operator-only snapshot summary (age, rows, stale/errored region counts, whether a sweep is in flight) and the forced sweep start
 - `operator-access.ts`: the `WEB_ADMIN_CHARACTER_IDS` gate shared by the operator-only route modules
+- `web-access-routes.ts`: `/api/web/settings/web-access` — operator-only Firecrawl status (host only) and the runtime kill switch
 - `sde-routes.ts`: `/api/web/settings/sde` — operator-only static-data status, freshness check against CCP, and refresh start; access is the `WEB_ADMIN_CHARACTER_IDS` allowlist matched against the session's linked characters
 - `map-routes.ts`: `/api/web/map/` — status (graph readiness, missing scope, limits), bubble and system reads, risk-weighted routing, the Perimeter chat thread, and the SSE stream that owns the live position poll and releases it on abort
 - `transparency.ts`: public aggregate spend/infrastructure snapshot and session-gated personal spend

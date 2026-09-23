@@ -14,6 +14,7 @@ export const MAX_CLIENT_DISCOVERED_NAMESPACES = 32;
 export const MAX_CLIENT_DISCOVERED_SCHEMA_BYTES = 96_000;
 const CLIENT_EAGER_FUNCTIONS = new Set([
   'web_search',
+  'fetch_web_page',
   'update_plan',
   'get_eve_capabilities',
   'plan_route',

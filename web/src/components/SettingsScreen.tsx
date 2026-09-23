@@ -4,6 +4,7 @@ import { LocaleSwitch, useI18n } from '../i18n';
 import { MenuIcon } from '../icons';
 import { MarketSnapshotPanel } from './settings/MarketSnapshotPanel';
 import { SdePanel } from './settings/SdePanel';
+import { WebAccessPanel } from './settings/WebAccessPanel';
 import type { ModelPricing, ModelSettingsPayload } from '../types';
 
 type Props = { csrfToken: string; onMenu: () => void };
@@ -182,6 +183,7 @@ export function SettingsScreen({ csrfToken, onMenu }: Props) {
         </section>
         <SdePanel csrfToken={csrfToken} />
         <MarketSnapshotPanel csrfToken={csrfToken} />
+        <WebAccessPanel csrfToken={csrfToken} />
         <div className="settings-actions">
           <button className="button button--primary" type="button" disabled={saving || !dirty || locked} onClick={() => void save()}>
             {saving ? t('settingsSaving') : t('settingsSave')}

@@ -28,6 +28,12 @@ What this fork changes on top of `garshany/eveai`:
   `WEB_ADMIN_CHARACTER_IDS` allowlist of EVE character ids; empty means nobody. Upstream can only do this on the
   host with `npm run setup` plus a restart. The snapshot's build number now comes from the archive's own ETag
   instead of the load date, so a same-day reload no longer leaves the map built from the previous universe.
+- **Internet access for the agent (Firecrawl).** Set `FIRECRAWL_URL` and `FIRECRAWL_API_KEY` and the agent gains
+  open-web search plus `fetch_web_page`, which reads one public page as Markdown — patch notes, dev blogs, forum
+  threads, wikis, third-party tools — and cites it. Upstream can only search snippets through Tavily and never
+  reads a page. A settings panel shows the configured endpoint and switches the access off at runtime without a
+  restart; the switch is stored. Fetched text is treated as untrusted data, loopback and private addresses are
+  refused before egress, and pages are bounded per turn and truncated to a character budget.
 - **Market snapshot controls in the same panel.** Snapshot age, row count, stale and errored region counts, the
   last sweep error, and whether a sweep is running right now — plus a *Load now* button that treats every region
   as due while still respecting ESI's five-minute cache window.
@@ -97,6 +103,7 @@ For a public SSO callback, use HTTPS, set the callback URL exactly in the EVE De
 ## Capabilities
 
 - **Perimeter live map:** an ego-centric graph of the systems around your pilot where the ring index *is* the jump distance, with live kill activity, explainable danger scoring, gate-camp detection, wormhole shortcuts, risk-weighted routing, and an agent chat that warns you unprompted — pursuit, camps on the next hop, and hulls that out-class yours.
+- Optional internet access: open-web search and single-page reading through Firecrawl, with an operator kill switch.
 - Natural-language Telegram and Discord assistant for EVE Online questions and workflows.
 - Same-origin browser chat with anonymous sessions, conversation history, optional EVE SSO, and the same guarded agent/tool loop.
 - Browser market workspace: regional order books, SDE item cards, market history and alerts, and a natural-language AI item search.

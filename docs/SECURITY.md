@@ -43,6 +43,10 @@
 - the four additional programmatic facades use only fixed public CCP ESI operations, the fixed local `doctrine_detect` wrapper, and optional local-SDE base values; they never request capabilities, refresh or send user tokens, or inspect linked identity, profile, chat history, fits, or private ESI
 - bounded public-facade output excludes raw market history, full bulk-system payloads, raw doctrine clusters/URLs/module lists, dynamic-item creator identity/effects/unrequested attributes, transport details, and upstream error bodies
 - routine audit records and console logs for bounded public facades contain only a fixed bounded-read classification plus sanitized status/size metadata, never argument names, values or IDs, generated programs, caller IDs, full upstream responses, or credentials
+- web access is optional and off unless both `FIRECRAWL_URL` and `FIRECRAWL_API_KEY` are set; an operator can revoke it at runtime, and the stored switch survives a restart
+- `fetch_web_page` reads only public http(s) addresses: loopback, link-local, and RFC1918 targets plus URL-embedded credentials are rejected before egress, so a model- or user-supplied URL cannot reach the host's own network
+- fetched page text and web search results are untrusted third-party content, bounded by a character budget and framed as data the agent cites, never as instructions
+- web requests carry only the model's query or URL; the Firecrawl endpoint and key stay server-side, and failures are reduced to a status plus a fixed reason before reaching the model or the chat
 - update discovery calls one fixed public GitHub API URL without credentials, accepts only a stable `vMAJOR.MINOR.PATCH` tag and its exact canonical release URL, and never renders remote release text
 
 ## EVE Data Ownership

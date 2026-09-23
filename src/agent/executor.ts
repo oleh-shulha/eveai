@@ -130,7 +130,9 @@ import { executeAnalyzeScan } from '../eve-scan/analyzer.js';
 import { executeIntelNote } from '../eve-intel/notes.js';
 import { assessShip } from '../eve-board/threat.js';
 import { resolveActiveFitting, writeManualFitting } from '../eve/active-fitting.js';
-import { createWebSearchState, executeWebSearch, registerWebSearch } from './web-search.js';
+import { createWebSearchState, executeWebSearch, registerWebFetch, registerWebSearch } from './web-search.js';
+import { firecrawlScrape } from './firecrawl.js';
+import { isWebAccessEnabled } from './web-access.js';
 import type { WebSearchState } from './web-search.js';
 import {
   deriveLiveContextNeeds,
@@ -2591,6 +2593,22 @@ async function executeToolCallUnadmitted(
     const result = await executeWebSearch(query);
     console.log('[web_search] ok=%s results=%d', result.ok, result.results.length);
     return result;
+  }
+
+  if (name === 'fetch_web_page') {
+    if (!isWebAccessEnabled()) {
+      return { ok: false, error: 'Чтение веб-страниц отключено оператором.', blocked: true };
+    }
+    const url = String(args.url ?? '');
+    const guard = registerWebFetch(webSearchState, url);
+    if (!guard.allowed) {
+      console.log('[fetch_web_page] blocked reason=%s url=%s', guard.reason, url);
+      return { ok: false, error: guard.reason, blocked: true };
+    }
+    console.log('[fetch_web_page] url=%s', url);
+    const page = await firecrawlScrape(url);
+    console.log('[fetch_web_page] ok=%s', page.ok);
+    return page;
   }
 
   if (name === 'get_eve_capabilities') {

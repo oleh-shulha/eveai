@@ -24,6 +24,7 @@ import type {
   ModelSettingsPayload,
   MarketSnapshotAdminPayload,
   SdeStatusPayload,
+  WebAccessPayload,
   PerimeterMessage,
   MyTransparency,
   PilotProfile,
@@ -351,6 +352,12 @@ export const webApi = {
   refreshMarketSnapshot: (csrfToken: string) => request<MarketSnapshotAdminPayload>(
     '/api/web/settings/market-snapshot/refresh',
     { method: 'POST' },
+    csrfToken,
+  ),
+  getWebAccess: () => request<WebAccessPayload>('/api/web/settings/web-access'),
+  setWebAccess: (allowed: boolean, csrfToken: string) => request<WebAccessPayload>(
+    '/api/web/settings/web-access',
+    { method: 'PUT', body: JSON.stringify({ allowed }) },
     csrfToken,
   ),
   getSdeStatus: () => request<SdeStatusPayload>('/api/web/settings/sde'),

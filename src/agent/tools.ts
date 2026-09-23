@@ -36,10 +36,12 @@ import {
   type ProgrammaticToolName,
 } from './programmatic-contracts.js';
 import { SDE_SCHEMA, STATIC_AGGREGATE_SDE_SCHEMA } from './tools/sde-schema.js';
+import { isWebAccessEnabled } from './web-access.js';
 
 const SDE_SQL_TOOL_NAME = 'sde_sql';
 const CHARACTER_SQL_TOOL_NAME = 'character_sql';
 const WEB_SEARCH_TOOL_NAME = 'web_search';
+const WEB_FETCH_TOOL_NAME = 'fetch_web_page';
 const LOCAL_PARALLEL_BATCH_TOOL_NAME = 'local_parallel_batch';
 const READ_SUBAGENT_BATCH_TOOL_NAME = 'delegate_read_subagents';
 
@@ -172,6 +174,20 @@ const ALWAYS_ON_FUNCTION_TOOLS: NativeFunctionTool[] = [
         query: { type: 'string', description: 'Search query in English for best results' },
       },
       required: ['query'],
+      additionalProperties: false,
+    },
+  },
+  {
+    type: 'function',
+    name: WEB_FETCH_TOOL_NAME,
+    description: 'Read one web page and return its main text as Markdown. Use it when a search snippet is not enough, when the user gives a URL, or to verify a claim at its source: patch notes, dev blogs, forum threads, wiki articles, third-party tools. One page per call, long pages are truncated. Always cite the page URL in the final answer.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'Absolute http(s) URL of the page to read' },
+      },
+      required: ['url'],
       additionalProperties: false,
     },
   },
@@ -574,12 +590,17 @@ export async function buildNativeAgentTools(
     }));
   }
 
-  // Only offer web_search when a Tavily key is configured. Without it the tool
-  // is weak (EVE-Uni wiki only) and the model wastes turns on it instead of
-  // answering game-data questions from the local SDE / live ESI.
-  const alwaysOn = config.tavily?.apiKey
-    ? ALWAYS_ON_FUNCTION_TOOLS
-    : ALWAYS_ON_FUNCTION_TOOLS.filter((tool) => tool.name !== WEB_SEARCH_TOOL_NAME);
+  // web_search needs a real backend: with neither Tavily nor web access it is
+  // EVE-Uni wiki only, and the model wastes turns on it instead of answering
+  // game-data questions from the local SDE / live ESI. Reading a page needs web
+  // access outright, and the operator can switch that off mid-run.
+  const webAccess = isWebAccessEnabled();
+  const webSearchAvailable = Boolean(config.tavily?.apiKey) || webAccess;
+  const alwaysOn = ALWAYS_ON_FUNCTION_TOOLS.filter((tool) => {
+    if (tool.name === WEB_SEARCH_TOOL_NAME) return webSearchAvailable;
+    if (tool.name === WEB_FETCH_TOOL_NAME) return webAccess;
+    return true;
+  });
 
   const notificationCapability = options.notificationCapability ?? 'all';
   const includeRouteMonitor = notificationCapability !== 'none';

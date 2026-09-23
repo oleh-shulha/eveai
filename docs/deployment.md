@@ -477,6 +477,37 @@ sessions, EVE links, and feed cursors back to the backup timestamp; the
 EVE-KILL feed resumes from its stored cursor and does not replay events missed
 after it.
 
+## Internet Access (Firecrawl)
+
+The agent has no way to read the open web unless both `FIRECRAWL_URL` and
+`FIRECRAWL_API_KEY` are set. With them, two tools appear: open-web search
+(`web_search` starts using Firecrawl as its first source) and `fetch_web_page`,
+which reads a single public page and returns its main text as Markdown.
+
+`FIRECRAWL_URL` is the service root — the cloud API or a self-hosted instance —
+without a version suffix; the client appends `/v2/...` itself and strips a
+pasted `/v1` or `/v2`. Tuning lives in `FIRECRAWL_TIMEOUT_MS`,
+`FIRECRAWL_MAX_CONTENT_CHARS`, `FIRECRAWL_MAX_FETCHES_PER_TURN`, and
+`FIRECRAWL_MAX_SEARCH_RESULTS`.
+
+**Settings → Internet access** (the `WEB_ADMIN_CHARACTER_IDS` allowlist) shows
+the configured host and switches the access off at runtime. The switch is stored
+in `operator_flags`, so it survives a restart, and it applies from the next
+answer: while it is off, neither tool is offered to the model at all.
+
+Boundaries worth knowing before enabling it:
+
+- The request carries only the model's query or URL. The endpoint and the key
+  stay server-side, and a failure reaches the model as a status plus a fixed
+  reason, never a provider body.
+- Targets are public http(s) addresses only. Loopback, link-local, RFC1918 and
+  `.local`/`.internal` hosts, plus URLs with embedded credentials, are refused
+  before any egress, so a model- or user-supplied URL cannot reach the host's
+  own network.
+- Fetched text is untrusted third-party content: it is truncated to the
+  character budget, bounded per turn, and the prompt requires the agent to cite
+  it rather than act on it.
+
 ## Static Data (SDE)
 
 Static game data comes from the archive CCP publishes at

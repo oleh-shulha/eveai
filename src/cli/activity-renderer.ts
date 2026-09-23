@@ -28,6 +28,7 @@ export function toolLabel(name: string): string {
     plan_route: '🗺  route planner',
     route_monitor: '🛰  route monitor',
     web_search: '🌐 web search',
+    fetch_web_page: '📄 reading page',
     osint_infer_home: '🕵  OSINT',
     analyze_local: '📡 local analysis',
     analyze_scan: '📡 d-scan analysis',

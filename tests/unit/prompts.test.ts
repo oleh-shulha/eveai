@@ -25,7 +25,7 @@ describe('buildDeveloperPrompt', () => {
     expect(enabled).toContain('doctrine_summary: 2-4 distinct corporation/alliance targets');
     expect(enabled).toContain('dynamic_item_summary: 2-4 distinct dynamic item pairs');
     expect(enabled).toContain('Resolve names to numeric IDs/type IDs directly before');
-    expect(enabled).toContain('Never mix tools, retry, loop, discover identifiers, use private ESI, web_search, sde_sql, raw kill tools, or mutate state');
+    expect(enabled).toContain('Never mix tools, retry, loop, discover identifiers, use private ESI, web_search, fetch_web_page, sde_sql, raw kill tools, or mutate state');
     expect(enabled).toContain('Use a direct call for a single count, market region/history, system search/metric, kill/doctrine summary, or dynamic item');
   });
   it('keeps the main prompt compact and focused', () => {
@@ -100,10 +100,13 @@ describe('buildDeveloperPrompt', () => {
     // Raised from 14000 when the Perimeter map tool family landed: routing the
     // model to map_bubble_intel instead of a fan-out of kill searches, and
     // stating that its ESI baseline is hourly, is worth the ~350 characters.
+    // Raised again from 14500 for web access: fetch_web_page needs its routing
+    // rule (search first, then read one URL), its budget, and the line that
+    // makes fetched page text untrusted data rather than instructions.
     // The ceiling stays tight on purpose — grow it only for a real tool family,
     // never for prose.
     expect(prompt).not.toContain('<hosted_mcp_data_boundary>');
-    expect(prompt.length).toBeLessThan(14500);
+    expect(prompt.length).toBeLessThan(15200);
   });
 
 

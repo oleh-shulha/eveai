@@ -1,5 +1,6 @@
 import { createLogger, printStartupBanner, type BannerRow } from './observability/logger.js';
 import { validatePublicWebProductionConfig } from './web/production-config.js';
+import { getWebAccessState, loadWebAccessFlag } from './agent/web-access.js';
 
 const log = createLogger('app');
 
@@ -100,6 +101,7 @@ async function main() {
   const runtimeLock = acquireRuntimeLock(config.db.path, 'bot service');
   const db = initDb(config.db.path);
   runMigrations(db);
+  loadWebAccessFlag(db);
   const { startUsageRollupScheduler } = await import('./usage/scheduler.js');
   const { startGcpBillingRefresher } = await import('./usage/gcp-billing.js');
   const stopUsageRollupScheduler = startUsageRollupScheduler(db);
@@ -389,6 +391,11 @@ async function main() {
       state: config.discord.botToken ? 'ok' : 'off',
     },
     {
+      label: 'Web access',
+      value: describeWebAccess(),
+      state: getWebAccessState().enabled ? 'ok' : 'off',
+    },
+    {
       label: 'Model',
       value: `${config.openai.providerName} · ${config.openai.model} · reasoning ${config.openai.reasoningEffort}/${config.openai.reasoningMode} · verbosity ${config.openai.textVerbosity}`,
       state: 'ok',
@@ -414,6 +421,13 @@ async function main() {
     log.error('Uncaught exception: %s', err.stack ?? err.message);
     void shutdown(1);
   });
+}
+
+function describeWebAccess(): string {
+  const state = getWebAccessState();
+  if (!state.configured) return 'disabled (no FIRECRAWL_URL/FIRECRAWL_API_KEY)';
+  if (!state.allowed) return `off by operator · ${state.endpointHost}`;
+  return `${state.endpointHost} · search + page reading`;
 }
 
 function countSdeSystems(db: import('./db/sqlite.js').Db): number {
