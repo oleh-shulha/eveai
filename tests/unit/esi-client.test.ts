@@ -144,6 +144,41 @@ describe('esi client', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('ends the retry chain the moment the caller cancels', async () => {
+    const controller = new AbortController();
+    fetchMock.mockImplementation(async () => {
+      // A cancelled turn aborts the in-flight request; the rejection reaches the
+      // retry loop looking exactly like a flaky network.
+      controller.abort();
+      throw Object.assign(new Error('This operation was aborted'), { name: 'AbortError' });
+    });
+
+    const result = await callEsiOperation(db, 'get_status', {}, { userId: 0 }, { signal: controller.signal });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected a cancelled ESI call to fail');
+    expect(result.status).toBe(409);
+    // One attempt, no backoff: the pilot pressed cancel.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('still retries a genuine network failure', async () => {
+    vi.useFakeTimers();
+    fetchMock
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ players: 7 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+
+    const resultPromise = callEsiOperation<{ players: number }>(db, 'get_status', {}, { userId: 0 });
+    await vi.advanceTimersByTimeAsync(2000);
+    const result = await resultPromise;
+
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('fails instead of silently truncating X-Pages responses above ESI_MAX_PAGES', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify([{ order_id: 1 }]), {
       status: 200,

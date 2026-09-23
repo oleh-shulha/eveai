@@ -80,6 +80,64 @@ describe('turn outcome ledger', () => {
     expect(pendingTurnOutcomes(ledger)).toEqual([]);
   });
 
+  it('counts the whole-market read the question actually calls for', () => {
+    // The regression this file exists for: market_wide_summary returns its
+    // regions under `regions`, was in no counted list, and scored zero — so a
+    // finished priced answer was sent back to the model for more work.
+    const ledger = createTurnGoalLedger('Поищи регионы недалеко от Житы где хороший объём продаж и цена лучше');
+    expect(pendingTurnOutcomes(ledger)).toEqual(['multi_public_read']);
+
+    recordTurnToolOutcome(ledger, 'market_wide_summary', {}, {
+      ok: true,
+      type_id: 4246,
+      regions: [{ region_id: 10000002 }, { region_id: 10000043 }],
+    });
+
+    expect(pendingTurnOutcomes(ledger)).toEqual([]);
+  });
+
+  it('counts a read the ledger has never heard of', () => {
+    const ledger = createTurnGoalLedger('Покажи текущие цены PLEX и Tritanium');
+
+    recordTurnToolOutcome(ledger, 'some_future_public_facade', {}, {
+      ok: true,
+      entries: [{ id: 1 }, { id: 2 }],
+    });
+
+    expect(pendingTurnOutcomes(ledger)).toEqual([]);
+  });
+
+  it('still refuses to count mutations, failures, and bookkeeping as reads', () => {
+    const ledger = createTurnGoalLedger('Покажи текущие цены PLEX и Tritanium');
+
+    recordTurnToolOutcome(ledger, 'plan_route', {}, { ok: true, routes: [{ jumps: 3 }, { jumps: 4 }] });
+    recordTurnToolOutcome(ledger, 'update_plan', {}, { ok: true, steps: [{ id: 1 }, { id: 2 }] });
+    recordTurnToolOutcome(ledger, 'get_eve_capabilities', {}, { ok: true, scopes: ['a', 'b'] });
+    recordTurnToolOutcome(ledger, 'intel_note', {}, { ok: true, notes: [{ id: 1 }, { id: 2 }] });
+    recordTurnToolOutcome(ledger, 'sde_sql', {}, { ok: false, error: 'bad sql' });
+
+    expect(pendingTurnOutcomes(ledger)).toEqual(['multi_public_read']);
+  });
+
+  it('treats a single-value read as one attempt, not two', () => {
+    const ledger = createTurnGoalLedger('Покажи текущие цены PLEX и Tritanium');
+
+    recordTurnToolOutcome(ledger, 'market_type_info', {}, { ok: true, type_id: 34, price: 5 });
+
+    expect(pendingTurnOutcomes(ledger)).toEqual(['multi_public_read']);
+  });
+
+  it('does not count a price batch whose entries all failed', () => {
+    const ledger = createTurnGoalLedger('Покажи текущие цены PLEX и Tritanium');
+
+    recordTurnToolOutcome(ledger, 'batch_market_prices', {}, {
+      ok: true,
+      prices: [{ type_id: 1, error: 'no data' }, { type_id: 2, error: 'no data' }],
+    });
+
+    expect(pendingTurnOutcomes(ledger)).toEqual(['multi_public_read']);
+  });
+
   it.each([
     'Не используй private ESI, route, UI или writes',
     'Маршрут не нужен и не включай автопилот',

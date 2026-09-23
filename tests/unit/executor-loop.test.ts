@@ -1479,6 +1479,40 @@ describe('server-side Responses continuation', () => {
     expect(row.last_response_message_id).not.toBeNull();
   });
 
+  it('keeps a finished answer that a completion nudge withheld when the turn then dies', async () => {
+    // The goal asks for two public reads, so the ledger holds the turn open and
+    // the first finished answer is withheld. When the pushed continuation dies,
+    // the pilot must get that answer back rather than an error replacing the
+    // text they already read on screen.
+    const priced = 'Hydrogen Fuel Block: Jita 17 160 ISK, Domain 17 860 ISK.';
+    createNativeResponseMock
+      .mockResolvedValueOnce({ ...textResponse(priced), status: 'completed' })
+      .mockRejectedValueOnce(new Error('turn deadline exceeded'));
+    const { handleAgentMessage } = await import('../../src/agent/executor.js');
+
+    const result = await handleAgentMessage(
+      db as never,
+      't1',
+      { userId: 1, chatId: 1 },
+      'Покажи текущие цены PLEX и Tritanium',
+    );
+
+    expect(result.text).toBe(priced);
+    expect(createNativeResponseMock).toHaveBeenCalledTimes(2);
+    const stored = db.prepare(
+      "SELECT content FROM messages WHERE thread_id = ? AND role = 'assistant' ORDER BY id DESC LIMIT 1",
+    ).get('t1') as { content: string } | undefined;
+    expect(stored?.content).toBe(priced);
+  });
+
+  it('lets a failing turn fail when no answer was ever withheld', async () => {
+    createNativeResponseMock.mockRejectedValueOnce(new Error('turn deadline exceeded'));
+    const { handleAgentMessage } = await import('../../src/agent/executor.js');
+
+    await expect(handleAgentMessage(db as never, 't1', { userId: 1, chatId: 1 }, GOAL))
+      .rejects.toThrow('turn deadline exceeded');
+  });
+
   it('stores the latest server-chain input size instead of double-counting it', async () => {
     db.prepare('UPDATE agent_threads SET total_tokens = 9000 WHERE thread_id = ?').run('t1');
     createNativeResponseMock.mockResolvedValueOnce({ ...textResponse('sized'), status: 'completed' });

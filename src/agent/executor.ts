@@ -544,18 +544,35 @@ export async function handleAgentMessage(
 
   const developerPrompt = rebuildDeveloperPrompt();
 
-  const result = await runNativeAgentLoop(
-    db,
-    threadId,
-    ctx,
-    userText,
-    developerPrompt,
-    rebuildDeveloperPrompt,
-    createNativeResponse,
-    turnIdentity,
-    Math.max(1, rootDeadlineAt - Date.now()),
-    promptMode,
-  );
+  // A complete answer the model already produced, held back while the turn was
+  // pushed to cover a still-pending outcome. If that continuation then dies —
+  // deadline, cancel, iteration budget — the pilot gets the answer they already
+  // saw on screen instead of an error message replacing it.
+  const deferred: DeferredAnswer = { rescue: null };
+  let result: AgentResult;
+  try {
+    result = await runNativeAgentLoop(
+      db,
+      threadId,
+      ctx,
+      userText,
+      developerPrompt,
+      rebuildDeveloperPrompt,
+      createNativeResponse,
+      turnIdentity,
+      Math.max(1, rootDeadlineAt - Date.now()),
+      promptMode,
+      deferred,
+    );
+  } catch (error) {
+    const rescued = deferred.rescue?.();
+    if (!rescued) throw error;
+    console.log(
+      '[executor] turn failed after a complete answer was withheld (%s); returning that answer',
+      error instanceof Error ? error.message : String(error),
+    );
+    result = rescued;
+  }
 
   // Advance the pre-turn compaction counter. Stateless prompts are rebuilt from
   // a bounded SQLite window, so accumulating each peak acts as the periodic
@@ -815,6 +832,8 @@ async function runNativeAgentLoop(
   deadlineMs: number = config.openai.turnDeadlineMs,
   /** Set when the thread already decided which assistant is answering. */
   toolMode?: 'full' | 'static_aggregate' | 'perimeter',
+  /** Filled when a finished answer is held back for a completion nudge. */
+  deferred: DeferredAnswer = { rescue: null },
 ): Promise<AgentResult> {
   const requestId = createRequestId();
   const terminalFailure = (
@@ -1426,6 +1445,20 @@ async function runNativeAgentLoop(
         const pendingOutcomes = pendingTurnOutcomes(turnGoalLedger);
         if (pendingOutcomes.length > 0 && completionNudges < 2) {
           completionNudges += 1;
+          // This answer is complete enough to ship. It is withheld only because
+          // an outcome is still pending, so keep it as the turn's floor: losing
+          // a written answer to a nudge that goes nowhere is the worse failure.
+          const withheld = finalAssistantText || convenienceText;
+          if (withheld) {
+            const withheldPeak = peakInputTokens;
+            deferred.rescue = () => {
+              reportActivity({ type: 'final_assistant_message' });
+              storeAssistantMessage(db, threadId, withheld, null);
+              saveLastResponseId(db, threadId, null);
+              finalizePlanCompletion(db, requestId);
+              return { text: withheld, peakInputTokens: withheldPeak };
+            };
+          }
           const nudge = toNativeMessage(buildTurnCompletionNudge(pendingOutcomes));
           const continuationItems = buildOrderedContinuationInputItems(
             response.output,
@@ -1766,8 +1799,13 @@ async function runNativeAgentLoop(
   console.log('[executor] === DONE (timeout) iterations=%d total_in=%d total_out=%d total_cached=%d total_cache_write=%d total_reasoning=%d ===',
     MAX_TOOL_ITERATIONS, totalInputTokens, totalOutputTokens, totalCachedTokens, totalCacheWriteTokens,
     totalReasoningTokens);
+  const rescued = deferred.rescue?.();
+  if (rescued) return rescued;
   return terminalFailure(timeout, 'iteration_budget', peakInputTokens);
 }
+
+/** Box for an answer withheld by a completion nudge; see the nudge branch. */
+type DeferredAnswer = { rescue: (() => AgentResult) | null };
 
 type ExtractedToolCall = ReturnType<typeof extractFunctionCalls>[number];
 

@@ -14,8 +14,28 @@ export function timeoutSignal(timeoutMs: number, parentSignal?: AbortSignal | nu
   return AbortSignal.any([parentSignal, timeoutSignal]);
 }
 
-export async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Backoff that a cancelled turn can walk out of. Without the signal a cancel
+ * pressed during a retry pause is only noticed when the pause ends, which is
+ * how "cancel does nothing" looks from the chat.
+ */
+export async function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
+  if (!signal) {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+    return;
+  }
+  if (signal.aborted) return;
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      resolve();
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -43,8 +63,11 @@ export async function fetchRetrying(
       const signal = timeoutSignal(timeoutMs, init.signal);
       response = await fetch(input, { ...init, signal });
     } catch (error) {
+      // A caller that cancelled is not a flaky network: retrying it burns the
+      // backoff and the turn ends later than the pilot asked for.
+      if (init.signal?.aborted) throw error;
       if (attempt >= maxAttempts) throw error;
-      await sleep(retryBackoffMs(null, attempt, backoffMaxMs));
+      await sleep(retryBackoffMs(null, attempt, backoffMaxMs), init.signal);
       continue;
     }
 
@@ -52,7 +75,8 @@ export async function fetchRetrying(
 
     const retryable = response.status === 429 || response.status >= 500;
     if (retryable && attempt < maxAttempts) {
-      await sleep(retryBackoffMs(response.headers, attempt, backoffMaxMs));
+      await sleep(retryBackoffMs(response.headers, attempt, backoffMaxMs), init.signal);
+      if (init.signal?.aborted) return response;
       continue;
     }
 

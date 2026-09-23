@@ -102,7 +102,30 @@ function currentContrastClause(value: string): string {
   return value.slice(last.index + last[0].length);
 }
 
+/**
+ * Tools that are not a data read: this ledger's own outcomes, mutations, and
+ * bookkeeping calls.
+ *
+ * The count is inverted on purpose. It used to list the reads that counted —
+ * exactly the nine programmatic facades — so `market_wide_summary`, the repo's
+ * own whole-New-Eden market read, scored zero, the turn looked unfinished, and
+ * a finished answer was sent back to the model for more work. A list of reads
+ * rots every time a tool is added; the list of mutations is short and stable.
+ */
+const NON_READ_TOOLS: ReadonlySet<string> = new Set([
+  'plan_route',
+  'route_monitor',
+  'kill_watch',
+  'intel_note',
+  'heartbeat_config',
+  'set_active_fit',
+  'update_plan',
+  // A capability probe, not data the user asked for.
+  'get_eve_capabilities',
+]);
+
 function attemptedPublicReads(name: string, result: Record<string, unknown>): number {
+  if (NON_READ_TOOLS.has(name)) return 0;
   if (name === 'local_parallel_batch' && Array.isArray(result.results)) {
     return result.results.filter((entry) => {
       if (!isRecord(entry) || !isRecord(entry.output)) return false;
@@ -112,26 +135,19 @@ function attemptedPublicReads(name: string, result: Record<string, unknown>): nu
   if (name === 'delegate_read_subagents' && Array.isArray(result.results)) {
     return result.results.filter((entry) => isRecord(entry) && entry.status === 'completed').length;
   }
-  if (name === 'sde_sql') {
-    if (result.ok === false) return 0;
-    const rows = Array.isArray(result.rows) ? result.rows : Array.isArray(result.data) ? result.data : [];
-    return rows.length >= 2 ? 2 : 1;
-  }
+  // A batch of prices that all failed is not a read, however long the array is.
   if (name === 'batch_market_prices' && Array.isArray(result.prices)) {
     return result.prices.filter((entry) => isRecord(entry) && entry.error == null).length >= 2 ? 2 : 1;
   }
-  for (const key of ['data', 'items', 'systems', 'types']) {
-    if (Array.isArray(result[key]) && result[key].length >= 2) return 2;
+  if (result.ok === false) return 0;
+  // One call that came back with a collection already answers a "compare these
+  // two" request; a single-value read is worth one.
+  return hasCollectionOfAtLeastTwo(result) ? 2 : 1;
+}
+
+function hasCollectionOfAtLeastTwo(result: Record<string, unknown>): boolean {
+  for (const value of Object.values(result)) {
+    if (Array.isArray(value) && value.length >= 2) return true;
   }
-  return new Set([
-    'count_universe_objects',
-    'batch_market_prices',
-    'market_history_summary',
-    'system_metric_snapshot',
-    'dynamic_item_summary',
-    'compare_wormhole_types',
-    'scout_systems',
-    'kill_activity_summary',
-    'doctrine_summary',
-  ]).has(name) && result.ok === true ? 1 : 0;
+  return false;
 }

@@ -375,11 +375,20 @@ export async function fetchEsiWithRetry(
         signal: guard.signal,
       }, config.esi.requestTimeoutMs);
     } catch (error) {
+      // A cancelled turn aborts the in-flight request, and that abort arrives
+      // here as a network failure. Retrying it waits out a backoff before the
+      // top-of-loop check notices, which is why cancel used to feel dead.
+      if (guard.signal?.aborted || guard.identityCurrent?.() === false) {
+        return {
+          ok: false,
+          result: { ok: false, status: 409, error: 'ESI operation cancelled during the request.' },
+        };
+      }
       // Network failure is safe to retry for idempotent verbs. A POST may have
       // reached ESI and been processed (mail sent, fitting created) — retrying
       // could duplicate the side effect, so only retry idempotent methods.
       if (attempt < maxAttempts && isIdempotentMethod(method)) {
-        await sleep(computeBackoffMs(new Headers(), attempt));
+        await sleep(computeBackoffMs(new Headers(), attempt), guard.signal);
         continue;
       }
       return {
@@ -401,7 +410,7 @@ export async function fetchEsiWithRetry(
     const isRateLimit = response.status === 420 || response.status === 429;
     const shouldRetry = isRateLimit || (response.status >= 500 && isIdempotentMethod(method));
     if (shouldRetry && attempt < maxAttempts) {
-      await sleep(computeBackoffMs(response.headers, attempt));
+      await sleep(computeBackoffMs(response.headers, attempt), guard.signal);
       continue;
     }
 
