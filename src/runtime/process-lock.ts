@@ -1,4 +1,5 @@
 import {
+  existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
@@ -58,7 +59,7 @@ export function acquireRuntimeLock(dbPath: string, runtime: string): RuntimeLock
         renameSync(candidate, lockPath);
         break;
       } catch (error) {
-        if (!isAlreadyExists(error)) throw error;
+        if (!isAlreadyExists(error, lockPath)) throw error;
         const current = readOwner(lockPath);
         if (current && isProcessAlive(current.pid)) {
           const observedStart = getProcessStartedAt(current.pid);
@@ -80,7 +81,7 @@ export function acquireRuntimeLock(dbPath: string, runtime: string): RuntimeLock
         try {
           renameSync(lockPath, stalePath);
         } catch (takeoverError) {
-          if (isMissing(takeoverError) || isAlreadyExists(takeoverError)) continue;
+          if (isMissing(takeoverError) || isAlreadyExists(takeoverError, stalePath)) continue;
           throw takeoverError;
         }
         rmSync(stalePath, { recursive: true, force: true });
@@ -162,9 +163,20 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
-function isAlreadyExists(error: unknown): boolean {
+/**
+ * "The destination is already owned by someone else."
+ *
+ * POSIX reports that as EEXIST/ENOTEMPTY. Windows refuses a rename onto an
+ * existing directory with EPERM (EACCES when the directory is held open), so
+ * the destination itself, not the errno alone, decides what the failure means:
+ * without this the caller would surface a raw EPERM instead of naming the
+ * process that holds the lock.
+ */
+function isAlreadyExists(error: unknown, destination: string): boolean {
   const code = (error as NodeJS.ErrnoException | null)?.code;
-  return code === 'EEXIST' || code === 'ENOTEMPTY';
+  if (code === 'EEXIST' || code === 'ENOTEMPTY') return true;
+  if (code === 'EPERM' || code === 'EACCES') return existsSync(destination);
+  return false;
 }
 
 function isMissing(error: unknown): boolean {
