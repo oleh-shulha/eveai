@@ -268,6 +268,23 @@ Access control:
 - `WEB_ALLOWED_CHARACTER_IDS` restricts the app to named characters: anyone else gets one screen saying so, and EVE SSO refuses to attach an unlisted character to a browser login before any token is stored. Chat lanes keep their own allowlists (`ALLOWED_TELEGRAM_USER_ID`, `ALLOWED_DISCORD_USER_ID`).
 - `WEB_ADMIN_CHARACTER_IDS` is a separate, narrower list for the operator panels. Empty means nobody. Put your own character in both lists when you use both.
 
+Both lists take numeric EVE character ids, never names: EVE SSO identifies a
+character as `CHARACTER:EVE:<id>`, and that id is the key every link in the
+database hangs on. Resolve a name with the public ESI endpoint:
+
+```bash
+curl -s -X POST 'https://esi.evetech.net/latest/universe/ids/?datasource=tranquility' -H 'Content-Type: application/json' -d '["Your Character Name"]'
+# {"characters":[{"id":95465499,"name":"Your Character Name"}]}
+```
+
+For a character that is already linked, the terminal client prints it:
+
+```bash
+npm run cli
+eve> /whoami
+# Your Character Name · id 95465499 · 7 scopes
+```
+
 Internet access:
 
 - `FIRECRAWL_URL` + `FIRECRAWL_API_KEY` give the agent `fetch_web_page` (one public page as Markdown) and make `web_search` answer from Firecrawl's index. Without them the agent has no way to read the web.
