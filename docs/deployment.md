@@ -521,6 +521,20 @@ Operational notes:
   `chown -R 1000:1000 ./data` first.
 - **Health.** `HEALTHCHECK` polls `/health` inside the container, so
   `docker ps` reports the app's own readiness rather than "the process exists".
+- **One owner at a time.** The database has a single-owner runtime lock, so the
+  deployment strategy must stop the old container before starting the new one
+  (recreate, not rolling). A rolling strategy deadlocks by construction: the new
+  container cannot take the lock while the old one holds it, so it never becomes
+  healthy, so the old one is never stopped. When the platform insists on
+  starting the new instance first, set `RUNTIME_LOCK_WAIT_SECONDS` (90 is a
+  reasonable start) so the new process waits out the old one's shutdown drain
+  instead of dying on arrival.
+- **Lock identity across containers.** A PID only means something inside one PID
+  namespace, so the lock also carries the owner's hostname and a heartbeat. A
+  lock written by another container is judged by that heartbeat alone — a
+  container that stopped writing for a minute is gone — while a same-host owner
+  is still judged by PID identity, which is stronger. This is why a redeploying
+  container no longer refuses to start with "pid identity cannot be verified".
 - **Updates.** Rebuild the image from the tag you want and recreate the
   container; the volume carries the state across. The staged release workflow
   below applies to bare-metal installs.

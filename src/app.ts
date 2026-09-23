@@ -64,7 +64,7 @@ async function main() {
 
   const { initDb } = await import('./db/sqlite.js');
   const { runMigrations } = await import('./db/migrations.js');
-  const { acquireRuntimeLock } = await import('./runtime/process-lock.js');
+  const { acquireRuntimeLockWaiting } = await import('./runtime/process-lock.js');
   const { getAppVersion } = await import('./update/version.js');
   const {
     markBotDisabled,
@@ -98,7 +98,11 @@ async function main() {
   const { stopDiscordIngress } = await import('./discord/bot.js');
 
   // 2. Enforce the single-process feed/SQLite invariant, then initialize DB.
-  const runtimeLock = acquireRuntimeLock(config.db.path, 'bot service');
+  const runtimeLock = await acquireRuntimeLockWaiting(
+    config.db.path,
+    'bot service',
+    config.db.lockWaitSeconds * 1000,
+  );
   const db = initDb(config.db.path);
   runMigrations(db);
   loadWebAccessFlag(db);

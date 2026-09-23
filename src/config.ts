@@ -432,6 +432,11 @@ export const config = {
   },
   db: {
     path: optional('DB_PATH', './data/eve-agent.db'),
+    // How long a starting bot service waits for a previous owner to release the
+    // runtime lock. 0 keeps the historical "fail immediately". A container
+    // platform that starts the new instance before stopping the old one needs
+    // enough room for the old one's shutdown drain, or the deploy never lands.
+    lockWaitSeconds: Math.max(0, Math.min(600, optionalInt('RUNTIME_LOCK_WAIT_SECONDS', 0))),
   },
   sde: {
     dataDir: optional('SDE_DATA_DIR', './data/sde'),
