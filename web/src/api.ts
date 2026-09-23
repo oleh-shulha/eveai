@@ -128,7 +128,11 @@ async function request<T>(
 }
 
 export const webApi = {
-  openInClient: (action: 'market' | 'info', id: number, csrfToken: string) => request<{ ok: true }>(
+  resolveSystems: (text: string) => request<{ ok: true; systems: Array<{ systemId: number; name: string }> }>(
+    '/api/web/eve/systems/resolve',
+    { method: 'POST', body: JSON.stringify({ text }) },
+  ),
+  openInClient: (action: 'market' | 'info' | 'waypoint', id: number, csrfToken: string) => request<{ ok: true }>(
     '/api/web/eve/ui',
     { method: 'POST', body: JSON.stringify({ action, id }) },
     csrfToken,

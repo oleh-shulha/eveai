@@ -596,6 +596,8 @@ export default function App() {
         portraitUrl={profile?.character.portraitUrl ?? null}
         pilotInitial={(session.character?.name ?? session.displayName).slice(0, 1).toUpperCase()}
         dockOpen={dockOpen}
+        csrfToken={session.csrfToken}
+        clientActionsEnabled={Boolean(session.character)}
         onMenu={() => setSidebarOpen(true)}
         onSend={sendMessage}
         onCancel={() => void cancelActiveRequest()}

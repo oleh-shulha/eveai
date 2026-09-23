@@ -2657,6 +2657,30 @@ button:disabled {
 
 .settings-note--locked { color: var(--warn, var(--muted)); }
 
+/* A solar system named in an answer: a word that is also a button. Styled as
+   text with an underline, not as a control, so a paragraph still reads as prose. */
+.system-chip {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.system-chip:hover { text-decoration-style: solid; }
+.system-chip:disabled { cursor: progress; opacity: 0.7; }
+.system-chip--failed { color: var(--warning, var(--accent)); }
+
+.system-chip__note {
+  margin-left: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
 /* "Open in client": an action that belongs next to what it acts on. */
 .open-in-client {
   display: inline-flex;

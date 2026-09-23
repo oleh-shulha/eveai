@@ -5,6 +5,7 @@ import { decideScrollBehavior, isPinnedToBottom, scrollToBottom } from '../chat-
 import { LocaleSwitch, useI18n } from '../i18n';
 import { parseSqlUtcDate, parseSqlUtcMs } from '../sql-utc';
 import { MarkdownMessage } from './MarkdownMessage';
+import { SystemLinkProvider } from './SystemLinks';
 
 const MAX_MESSAGE_LENGTH = 2000;
 const COUNTER_VISIBLE_FROM = 1600;
@@ -20,6 +21,9 @@ type ChatScreenProps = {
   portraitUrl: string | null;
   pilotInitial: string;
   dockOpen: boolean;
+  csrfToken: string;
+  /** Acting on a system needs a linked character; guests get plain text. */
+  clientActionsEnabled: boolean;
   onMenu: () => void;
   onSend: (message: string) => Promise<void>;
   onCancel: () => void;
@@ -34,6 +38,7 @@ type ChatScreenProps = {
 
 export function ChatScreen({
   title, conversationId, messages, busy, request, error, modelLabel, portraitUrl, pilotInitial, dockOpen,
+  csrfToken, clientActionsEnabled,
   onMenu, onSend, onCancel, onDismissError, onToggleDock, onInspectTools, initialDraft, onInitialDraftConsumed,
 }: ChatScreenProps) {
   const { t } = useI18n();
@@ -124,7 +129,14 @@ export function ChatScreen({
     await onSend(message);
   };
 
+  // Only the answers name systems; a question mentioning Jita needs no button.
+  const answersText = messages
+    .filter((message) => message.role === 'assistant')
+    .map((message) => message.content)
+    .join('\n');
+
   const thread = (
+    <SystemLinkProvider text={answersText} csrfToken={csrfToken} enabled={clientActionsEnabled}>
     <div className="message-thread" role="log" aria-busy={busy}>
       {messages.map((message) => <MessageBubble
         key={message.id}
@@ -135,6 +147,7 @@ export function ChatScreen({
       />)}
       {busy ? <LiveTurn request={request} streamText={streamText} onCancel={onCancel} /> : null}
     </div>
+    </SystemLinkProvider>
   );
 
   const showIntro = messages.length === 0 && !busy && !streamText;

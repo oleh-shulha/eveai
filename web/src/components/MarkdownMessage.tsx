@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { SystemMentionText } from './SystemLinks';
 import { CheckIcon, CopyIcon } from '../icons';
 import { useI18n } from '../i18n';
 
@@ -266,7 +267,11 @@ function parseInline(value: string, keyPrefix: string): ReactNode[] {
   let cursor = 0;
   let match: RegExpExecArray | null;
   while ((match = tokenPattern.exec(value)) !== null) {
-    if (match.index > cursor) result.push(value.slice(cursor, match.index));
+    if (match.index > cursor) {
+      result.push(
+        <SystemMentionText key={`${keyPrefix}-t${cursor}`} value={value.slice(cursor, match.index)} keyPrefix={`${keyPrefix}-t${cursor}`} />,
+      );
+    }
     const token = match[0];
     const key = `${keyPrefix}-${match.index}`;
     if (token.startsWith('**')) {
@@ -284,7 +289,11 @@ function parseInline(value: string, keyPrefix: string): ReactNode[] {
     }
     cursor = match.index + token.length;
   }
-  if (cursor < value.length) result.push(value.slice(cursor));
+  if (cursor < value.length) {
+    result.push(
+      <SystemMentionText key={`${keyPrefix}-t${cursor}`} value={value.slice(cursor)} keyPrefix={`${keyPrefix}-t${cursor}`} />,
+    );
+  }
   return result;
 }
 

@@ -155,6 +155,36 @@ describe('open in client: actions', () => {
     expect(response.json()).toMatchObject({ error: 'client_unavailable' });
   });
 
+  it('sets a system as the autopilot destination', async () => {
+    const session = browserSession();
+    linkCharacter(session, ['esi-ui.write_waypoint.v1']);
+
+    const response = await app.inject({
+      method: 'POST', url: URL_PATH, headers: headers(session), payload: { action: 'waypoint', id: 30000142 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(callEsiOperation).toHaveBeenCalledWith(
+      db,
+      'post_ui_autopilot_waypoint',
+      { destination_id: 30000142, clear_other_waypoints: true, add_to_beginning: false },
+      expect.anything(),
+    );
+  });
+
+  it('asks for the waypoint scope, not the window scope, before routing', async () => {
+    const session = browserSession();
+    linkCharacter(session, [OPEN_WINDOW_SCOPE]);
+
+    const response = await app.inject({
+      method: 'POST', url: URL_PATH, headers: headers(session), payload: { action: 'waypoint', id: 30000142 },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ error: 'scope_required', scope: 'esi-ui.write_waypoint.v1' });
+    expect(callEsiOperation).not.toHaveBeenCalled();
+  });
+
   it('rejects an unknown action and a junk id before calling ESI', async () => {
     const session = browserSession();
     linkCharacter(session, [OPEN_WINDOW_SCOPE]);
@@ -169,5 +199,37 @@ describe('open in client: actions', () => {
       expect(response.statusCode, JSON.stringify(payload)).toBe(400);
     }
     expect(callEsiOperation).not.toHaveBeenCalled();
+  });
+});
+
+describe('systems named in an answer', () => {
+  it('resolves them from the local SDE for a signed-in reader', async () => {
+    const session = browserSession();
+    db.prepare("INSERT INTO sde_systems (system_id, name, constellation_id, data_json) VALUES (30000142, 'Jita', 1, '{}')").run();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/web/eve/systems/resolve',
+      headers: { cookie: session.cookie },
+      payload: { text: 'Маршрут Jita → Villore' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ok: true, systems: [{ systemId: 30000142, name: 'Jita' }] });
+  });
+
+  it('needs a session and a string', async () => {
+    const session = browserSession();
+
+    const anonymous = await app.inject({ method: 'POST', url: '/api/web/eve/systems/resolve', payload: { text: 'Jita' } });
+    const junk = await app.inject({
+      method: 'POST',
+      url: '/api/web/eve/systems/resolve',
+      headers: { cookie: session.cookie },
+      payload: { text: 42 },
+    });
+
+    expect(anonymous.statusCode).toBe(401);
+    expect(junk.statusCode).toBe(400);
   });
 });

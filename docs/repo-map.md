@@ -26,7 +26,8 @@ Use it when you need to find the right file or folder before reading implementat
 - `programmatic-contracts.ts`: exact nine-tool allowlist plus strict bounded success/error output schemas and safe serialization
 - `planner.ts` / `replanner.ts`: plan generation and adjustment
 - `compact.ts`: history reduction and compaction
-- `text-normalize.ts`: renders the LaTeX a model writes out of habit (`$ightarrow$`) as the character it meant, outside code blocks only
+- `text-normalize.ts`: renders the LaTeX a model writes out of habit (`$
+ightarrow$`) as the character it meant, outside code blocks only
 - `prompts.ts`: prompt-policy boundary
 - `finalizer.ts`: response shaping and final output path
 - `tools.ts`: model-visible tool schema surface
@@ -72,6 +73,7 @@ Use it when you need to find the right file or folder before reading implementat
 - `eve-scout-client.ts`, `eve-scout-executor.ts`, `eve-scout-tools.ts`: fixed public EVE-Scout transport, bounded projections, and deferred tool schemas; see `docs/eve-scout.md`
 - `market-history-summary.ts`: bounded 30/90-day public ESI market aggregation without raw daily rows
 - `market-snapshot.ts`: the scheduled ESI order-book sweep (5-minute cron plus a jittered boot sweep), single-flight across both entry points, and the operator-forced sweep that zeroes the tier intervals while still honouring ESI's own cache window
+- `system-mentions.ts`: which solar systems an answer names — exact, case-sensitive, standalone matches against the local SDE, so prose is not peppered with false links
 - `market-wide-summary.ts`: whole-New-Eden live order-book sweep for one type across all SDE-derived k-space trade regions, with explicit coverage reporting
 - `market-queries.ts`: read-only queries over the local `market_orders` snapshot with SDE joins — type search, overview/spread, paged order book, per-region comparison, market-group tree
 - `market-type-info.ts`: full SDE item card for the web market — localized description, traits, grouped dogma attributes with units, required skills, meta-chain variations
@@ -182,7 +184,7 @@ Defensive clients and tool schemas for community APIs (EVE Ref industry cost, zK
 - `character-allowlist.ts`: `WEB_ALLOWED_CHARACTER_IDS` — the onRequest hook over `/api/web/*` (session bootstrap, SSO start and the private gate stay open) plus the check EVE SSO uses to refuse attaching any other character to a browser login
 - `private-gate.ts`: the PRIVATE_PASSWORD lock — the onRequest hook over `/api/web/*`, the signed unlock cookie (bound to a fingerprint of the current password), and the per-address failure budget
 - `gate-routes.ts`: `/api/web/gate` — the only endpoint a locked visitor may call: state, unlock, and lock again
-- `eve-ui-routes.ts`: `/api/web/eve/ui` — hands one action to the running EVE client through ESI's UI endpoints (market details, show info); CSRF-checked, needs a linked character with `esi-ui.open_window.v1`, and answers `client_unavailable` when the client is closed
+- `eve-ui-routes.ts`: `/api/web/eve/ui` — hands one action to the running EVE client through ESI's UI endpoints (market details, show info, autopilot destination), plus `/api/web/eve/systems/resolve` for the system names an answer mentions; CSRF-checked, needs a linked character with `esi-ui.open_window.v1`, and answers `client_unavailable` when the client is closed
 - `web-access-routes.ts`: `/api/web/settings/web-access` — operator-only Firecrawl status (host only) and the runtime kill switch
 - `sde-routes.ts`: `/api/web/settings/sde` — operator-only static-data status, freshness check against CCP, and refresh start; access is the `WEB_ADMIN_CHARACTER_IDS` allowlist matched against the session's linked characters
 - `map-routes.ts`: `/api/web/map/` — status (graph readiness, missing scope, limits), bubble and system reads, risk-weighted routing, the Perimeter chat thread, and the SSE stream that owns the live position poll and releases it on abort
