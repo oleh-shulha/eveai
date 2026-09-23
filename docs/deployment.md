@@ -477,6 +477,38 @@ sessions, EVE links, and feed cursors back to the backup timestamp; the
 EVE-KILL feed resumes from its stored cursor and does not replay events missed
 after it.
 
+## Private Instance
+
+A deployment on a public hostname is open to anyone who finds it. Setting
+`PRIVATE_PASSWORD` (at least 8 characters, and `AUTH_SECRET_KEY` must be set
+because the unlock cookie is signed with it) closes it:
+
+- every `/api/web/*` route answers `403 {"error":"unlock_required"}` until the
+  browser unlocks, so the app has no session, chat, market, profile, map or
+  settings for a stranger;
+- the SPA shows one screen asking for the password, sends it to
+  `POST /api/web/gate`, and the server replies with an HttpOnly, SameSite=Lax
+  unlock cookie (`Secure` when `WEB_BASE_URL` is https). After that the app
+  behaves exactly as before for `PRIVATE_UNLOCK_TTL_HOURS`;
+- `DELETE /api/web/gate` drops that cookie again, for a shared machine.
+
+Deliberately left reachable: `/health`, the static app shell, and the entire EVE
+SSO flow (`/auth/eve/login`, `/auth/eve/consent`, `/auth/eve/callback`,
+`/callback`). CCP redirects to the callback, and an SSO link produced in
+Telegram, Discord or the CLI opens in a browser that never unlocked. Those
+endpoints are bound to a one-time state token issued from an authorized lane, so
+they are not a way into the app.
+
+The cookie carries no password — an expiry plus an HMAC over that expiry and a
+fingerprint of the current password — so rotating `PRIVATE_PASSWORD` locks every
+browser out again. The password is compared as a digest in constant time, and
+wrong attempts are budgeted per client address: eight failures inside fifteen
+minutes lock that address out for fifteen, and during the lockout even the
+correct password is refused.
+
+This is a lock on the browser app only. Telegram, Discord and the CLI keep their
+own allowlists (`ALLOWED_TELEGRAM_USER_ID`, `ALLOWED_DISCORD_USER_ID`).
+
 ## Internet Access (Firecrawl)
 
 The agent has no way to read the open web unless both `FIRECRAWL_URL` and

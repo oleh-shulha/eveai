@@ -156,6 +156,32 @@ describe('OpenAI runtime configuration', () => {
     );
   });
 
+  it('requires a private password to be long enough and signable', async () => {
+    setRequiredEnv();
+    process.env.OPENAI_PROFILE = 'openai';
+    process.env.AUTH_SECRET_KEY = 'test-secret';
+    process.env.PRIVATE_PASSWORD = 'short';
+
+    await expect(import('../../src/config.js')).rejects.toThrow('PRIVATE_PASSWORD must be at least 8 characters');
+
+    vi.resetModules();
+    setRequiredEnv();
+    process.env.PRIVATE_PASSWORD = 'long-enough-password';
+    delete process.env.AUTH_SECRET_KEY;
+
+    // The unlock cookie is signed with AUTH_SECRET_KEY; without it the lock
+    // would hand out forgeable cookies.
+    await expect(import('../../src/config.js')).rejects.toThrow('PRIVATE_PASSWORD requires AUTH_SECRET_KEY');
+  });
+
+  it('treats an empty private password as a public instance', async () => {
+    setRequiredEnv();
+    process.env.OPENAI_PROFILE = 'openai';
+    process.env.PRIVATE_PASSWORD = '   ';
+
+    expect((await import('../../src/config.js')).config.web.privatePassword).toBe('');
+  });
+
   it('does not expose an EVE-KILL base override and keeps the client pinned to the current API', async () => {
     setRequiredEnv();
     process.env.EVE_KILL_BASE_URL = 'https://untrusted.invalid/';

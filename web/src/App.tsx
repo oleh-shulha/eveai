@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isAmbiguousApiRequestError, webApi } from './api';
+import { ApiRequestError, isAmbiguousApiRequestError, LOCKED_EVENT, webApi } from './api';
 import {
   mergeRequestSnapshot,
   mergeStreamDelta,
@@ -8,6 +8,7 @@ import {
   type PendingSubmission,
   type StreamDeltaFrame,
 } from './agent-request-client';
+import { GateScreen } from './components/GateScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { Sidebar, type AppView } from './components/Sidebar';
 import { ChatScreen } from './components/ChatScreen';
@@ -65,6 +66,7 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locked, setLocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(authResultMessage);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -135,7 +137,14 @@ export default function App() {
         }
       })
       .catch((reason: unknown) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : 'Не удалось открыть приложение.');
+        if (cancelled) return;
+        // A private instance answers `unlock_required` until this browser has
+        // entered the password; that is a gate, not a failure.
+        if (reason instanceof ApiRequestError && reason.code === 'unlock_required') {
+          setLocked(true);
+          return;
+        }
+        setError(reason instanceof Error ? reason.message : 'Не удалось открыть приложение.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -143,6 +152,14 @@ export default function App() {
     if (window.location.search) window.history.replaceState({}, '', '/app');
     return () => { cancelled = true; };
   }, [loadConversations, recoverActiveRequest]);
+
+  // The unlock cookie can expire mid-session, and any call may be the one that
+  // finds out. api.ts raises this once so the gate returns instead of an error.
+  useEffect(() => {
+    const onLocked = () => setLocked(true);
+    window.addEventListener(LOCKED_EVENT, onLocked);
+    return () => window.removeEventListener(LOCKED_EVENT, onLocked);
+  }, []);
 
   const sessionActive = Boolean(session);
   const characterId = session?.character?.id ?? null;
@@ -490,6 +507,12 @@ export default function App() {
       setBusy(false);
     }
   };
+
+  if (locked) {
+    // Reload rather than re-plumb every bootstrap effect: the cookie is set, so
+    // the next load is an ordinary start of the app.
+    return <GateScreen onUnlocked={() => window.location.reload()} />;
+  }
 
   if (loading) {
     return <div className="app-loading" aria-label="Загрузка"><span /><span /><span /></div>;

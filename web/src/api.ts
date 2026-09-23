@@ -23,6 +23,7 @@ import type {
   MapStatus,
   ModelSettingsPayload,
   MarketSnapshotAdminPayload,
+  GatePayload,
   SdeStatusPayload,
   WebAccessPayload,
   PerimeterMessage,
@@ -82,6 +83,8 @@ function httpErrorMessage(status: number, serverMessage?: string): string {
   return serverMessage || 'Не удалось выполнить запрос.';
 }
 
+export const LOCKED_EVENT = 'eveai:locked';
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -108,6 +111,10 @@ async function request<T>(
     const code = typeof payload.error === 'string' && /^[a-z][a-z0-9_]*$/.test(payload.error)
       ? payload.error
       : undefined;
+    // A locked private instance can surface on any call, not just the first:
+    // the unlock cookie expires. One event lets the app show the gate again
+    // without every caller having to know about it.
+    if (code === 'unlock_required') window.dispatchEvent(new Event(LOCKED_EVENT));
     throw new ApiRequestError(response.status, httpErrorMessage(response.status, code ? undefined : payload.error), code);
   }
   if (response.status === 204) return undefined as T;
@@ -119,6 +126,12 @@ async function request<T>(
 }
 
 export const webApi = {
+  getGate: () => request<GatePayload>('/api/web/gate'),
+  unlock: (password: string) => request<GatePayload>('/api/web/gate', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  }),
+  lock: () => request<GatePayload>('/api/web/gate', { method: 'DELETE' }),
   getSession: () => request<SessionPayload>('/api/web/session'),
   createSession: (turnstileToken?: string) => request<SessionPayload>('/api/web/session', {
     method: 'POST',

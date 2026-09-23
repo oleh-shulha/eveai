@@ -536,6 +536,13 @@ export type SdeStatusPayload = {
   job?: SdeRefreshState;
 };
 
+/** Private-instance gate state; `private: false` means the app is open. */
+export type GatePayload = {
+  ok: true;
+  private: boolean;
+  unlocked: boolean;
+};
+
 /** Operator-only web-access (Firecrawl) switch; `admin: false` hides the panel. */
 export type WebAccessPayload = {
   ok: true;

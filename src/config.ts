@@ -112,6 +112,24 @@ function parseFirecrawlBaseUrl(name: string): string {
   return raw.replace(/\/v[12]$/, '');
 }
 
+/**
+ * Shared password that locks the browser API of a public deployment. The unlock
+ * cookie is signed with AUTH_SECRET_KEY, so a private instance without that
+ * secret would hand out forgeable cookies and is refused at startup.
+ */
+function parsePrivatePassword(name: string): string {
+  const raw = process.env[name] ?? '';
+  const value = raw.trim();
+  if (!value) return '';
+  if (value.length < 8) {
+    throw new Error(`${name} must be at least 8 characters, or empty for a public instance`);
+  }
+  if (!(process.env.AUTH_SECRET_KEY ?? '').trim()) {
+    throw new Error(`${name} requires AUTH_SECRET_KEY: the unlock cookie is signed with it`);
+  }
+  return value;
+}
+
 /** Strict comma-separated EVE character id list; junk fails at startup. */
 function parseCharacterIdList(name: string): number[] {
   const raw = process.env[name];
@@ -359,6 +377,10 @@ export const config = {
     // EVE character ids allowed to run the operator-only browser controls
     // (static-data refresh). Empty means nobody: these are not user features.
     adminCharacterIds: parseCharacterIdList('WEB_ADMIN_CHARACTER_IDS'),
+    // Shared password in front of the browser API. Empty = public instance.
+    // The SSO flow and /health stay open either way; see web/private-gate.ts.
+    privatePassword: parsePrivatePassword('PRIVATE_PASSWORD'),
+    privateUnlockTtlHours: boundedPositiveInt('PRIVATE_UNLOCK_TTL_HOURS', 720, 1, 8760),
     sessionTtlHours: boundedPositiveInt('WEB_SESSION_TTL_HOURS', 720, 1, 8760),
     sessionCreationWindowSeconds: boundedPositiveInt(
       'WEB_SESSION_CREATION_WINDOW_SECONDS',

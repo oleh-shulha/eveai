@@ -12,7 +12,9 @@ import { registerAuthRoutes } from './auth-routes.js';
 import { registerExamplesRoutes } from './examples-routes.js';
 import { buildCanonicalLoopbackUrl } from './canonical-origin.js';
 import { registerWebChatRoutes } from './chat-routes.js';
+import { registerGateRoutes } from './gate-routes.js';
 import { registerHealthRoute } from './health.js';
+import { registerPrivateGate } from './private-gate.js';
 import { registerMarketAlertRoutes } from './market-alert-routes.js';
 import { registerMarketAiSearchRoutes } from './market-ai-search-routes.js';
 import { registerMarketSnapshotAdminRoutes } from './market-snapshot-routes.js';
@@ -38,6 +40,11 @@ export async function createServer(db: Db) {
     baseUrl: config.web.baseUrl,
     turnstileEnabled: Boolean(config.web.turnstileSiteKey && config.web.turnstileSecretKey),
   });
+
+  // Before every route: a private instance answers `unlock_required` for the
+  // browser API until this browser has entered PRIVATE_PASSWORD once.
+  registerPrivateGate(app);
+  registerGateRoutes(app);
 
   registerHealthRoute(app, { db });
   registerAuthRoutes(app, db);

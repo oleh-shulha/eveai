@@ -28,6 +28,11 @@ What this fork changes on top of `garshany/eveai`:
   `WEB_ADMIN_CHARACTER_IDS` allowlist of EVE character ids; empty means nobody. Upstream can only do this on the
   host with `npm run setup` plus a restart. The snapshot's build number now comes from the archive's own ETag
   instead of the load date, so a same-day reload no longer leaves the map built from the previous universe.
+- **A private instance behind one password (`PRIVATE_PASSWORD`).** A public hostname no longer means a public
+  app: every browser API call answers `unlock_required` until the visitor enters the password once, and the unlock
+  is a signed HttpOnly cookie the browser keeps. The EVE SSO flow, `/health` and the app shell stay open, so a
+  login started from Telegram or the CLI still completes in a fresh browser. Wrong attempts are budgeted per
+  address, and changing the password locks every browser out again.
 - **Internet access for the agent (Firecrawl).** Set `FIRECRAWL_URL` and `FIRECRAWL_API_KEY` and the agent gains
   open-web search plus `fetch_web_page`, which reads one public page as Markdown — patch notes, dev blogs, forum
   threads, wikis, third-party tools — and cites it. Upstream can only search snippets through Tavily and never

@@ -178,6 +178,8 @@ Defensive clients and tool schemas for community APIs (EVE Ref industry cost, zK
 - `profile-routes.ts` + `profile-data.ts`: `/api/web/profile/` living-profile reads over the character_* datastore (SQL-side asset rollup, regional valuation, price-book age) plus the CSRF-protected manual sync with an overall deadline
 - `market-snapshot-routes.ts`: `/api/web/settings/market-snapshot` — operator-only snapshot summary (age, rows, stale/errored region counts, whether a sweep is in flight) and the forced sweep start
 - `operator-access.ts`: the `WEB_ADMIN_CHARACTER_IDS` gate shared by the operator-only route modules
+- `private-gate.ts`: the PRIVATE_PASSWORD lock — the onRequest hook over `/api/web/*`, the signed unlock cookie (bound to a fingerprint of the current password), and the per-address failure budget
+- `gate-routes.ts`: `/api/web/gate` — the only endpoint a locked visitor may call: state, unlock, and lock again
 - `web-access-routes.ts`: `/api/web/settings/web-access` — operator-only Firecrawl status (host only) and the runtime kill switch
 - `sde-routes.ts`: `/api/web/settings/sde` — operator-only static-data status, freshness check against CCP, and refresh start; access is the `WEB_ADMIN_CHARACTER_IDS` allowlist matched against the session's linked characters
 - `map-routes.ts`: `/api/web/map/` — status (graph readiness, missing scope, limits), bubble and system reads, risk-weighted routing, the Perimeter chat thread, and the SSE stream that owns the live position poll and releases it on abort
