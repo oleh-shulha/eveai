@@ -255,11 +255,12 @@ describe('perimeter thread', () => {
     const threadId = getOrCreatePerimeterThread(db, -2_000_000_000, 1, null);
     appendAdvisory(db, threadId, advisory(), 'ru');
     // Иначе в списке диалогов каждый полёт называется «Новый диалог».
-    expect(perimeterThreadTitle(db, threadId, 'ru')).toBe('Периметр');
+    expect(perimeterThreadTitle('ru')).toBe('Периметр');
 
     db.prepare("INSERT INTO messages (thread_id, role, content) VALUES (?, 'user', ?)")
       .run(threadId, 'стоит ли лететь через Uedama?');
-    expect(perimeterThreadTitle(db, threadId, 'ru')).toBe('стоит ли лететь через Uedama?');
+    expect(perimeterThreadTitle('ru')).toBe('Периметр');
+    expect(perimeterThreadTitle('en')).toBe('Perimeter');
   });
 
   it('leaves ordinary chat messages without advisory metadata', () => {

@@ -49,6 +49,15 @@ The right-hand panel is a real conversation thread, not a notification rail. It
 persists across reloads, restarts, and re-login, and it appears in the workspace
 conversation list.
 
+The current conversation is reused per browser lane and character and always
+appears as **Периметр** in the sidebar, regardless of its first message.
+**Clear** deletes its history and model context in place; it does not create
+another session and is refused while an agent request is active. Deleting the
+session from the sidebar lets the map recreate it on its next history read,
+question or advisory, even if a map stream was already open. Ordinary new chats
+never reuse a Perimeter conversation. Existing historical sessions are not
+automatically removed.
+
 - **The pilot asks.** Every message silently carries the map context — current
   system and security, hull, bubble radius and its danger summary, the selected
   system, the active route — so a bare "стоит ли лететь?" is answerable without

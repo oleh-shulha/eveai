@@ -50,7 +50,7 @@ import {
   appendAdvisory,
   getOrCreatePerimeterThread,
   readPerimeterHistory,
-  startNewPerimeterThread,
+  clearPerimeterThread,
 } from '../eve-map/thread.js';
 import {
   clearActiveRoute,
@@ -440,12 +440,15 @@ export function registerMapRoutes(
     const session = requireMutationSession(db, request, reply);
     if (!session) return;
     const linked = getLinkedCharacter(db, sessionContext(session));
-    // A fresh thread, not a delete: the advisor may be writing into the current
-    // one at this exact moment, and the pilot's earlier warnings are evidence
-    // worth keeping.
-    const threadId = startNewPerimeterThread(
+    const threadId = getOrCreatePerimeterThread(
       db, session.chatId, session.userId, linked?.characterId ?? null,
     );
+    if (agentRequests.readActive(
+      { userId: session.userId, chatId: session.chatId }, threadId,
+    )) {
+      return reply.status(409).send({ error: 'Сначала дождитесь завершения или отмените активный запрос.' });
+    }
+    clearPerimeterThread(db, threadId);
     return { threadId, messages: [] };
   });
 
@@ -574,7 +577,9 @@ export function registerMapRoutes(
         });
         pendingKills = [];
         for (const advisory of advisories) {
-          publishAdvisory(db, threadId, advisory, locale, stream);
+          publishAdvisory(db, {
+            chatId: session.chatId, userId: session.userId, characterId: linked.characterId,
+          }, advisory, locale, stream);
         }
       } catch (error) {
         stream.send('warning', { message: (error as Error).message });
@@ -686,11 +691,14 @@ export function registerMapRoutes(
  */
 function publishAdvisory(
   db: Db,
-  threadId: string,
+  owner: { chatId: number; userId: number; characterId: number | null },
   advisory: Advisory,
   locale: 'ru' | 'en',
   stream: SseStream,
 ): void {
+  // The conversation may have been deleted while this stream stayed open.
+  // Resolve it at publication time so all streams reuse the same replacement.
+  const threadId = getOrCreatePerimeterThread(db, owner.chatId, owner.userId, owner.characterId);
   // The rule text is complete on its own. Model-authored prose is deliberately
   // not wired here yet: the previous version consumed the escalation cooldown
   // and then persisted the rule text anyway, which is worse than not having the

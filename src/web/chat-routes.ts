@@ -21,6 +21,7 @@ import {
   stopRouteMonitor,
 } from '../eve-board/monitor.js';
 import { getEveKillFeedRuntimeStatus } from '../eve-kill/feed-poll.js';
+import { perimeterThreadTitle } from '../eve-map/thread.js';
 import { loadWebPilotProfile } from './pilot-profile.js';
 import {
   clearWebSessionCookies,
@@ -598,17 +599,12 @@ function listConversations(db: Db, session: WebSession) {
     LIMIT 40
   `).all(session.chatId, session.userId, characterId) as ConversationRow[];
   return rows.map((row) => {
-    // A Perimeter thread routinely opens with an unprompted advisory rather
-    // than a user message, so the usual "first thing you typed" title left it
-    // sitting in the sidebar as an anonymous "Новый диалог" — which is exactly
-    // why the map's chat read as a mysterious second conversation.
     const kind = row.kind === 'perimeter' ? 'perimeter' : 'chat';
-    const fallback = kind === 'perimeter' ? 'Периметр' : 'Новый диалог';
     return {
       id: row.thread_id,
       characterId: row.character_id,
       kind,
-      title: row.title?.trim() || fallback,
+      title: kind === 'perimeter' ? perimeterThreadTitle('ru') : row.title?.trim() || 'Новый диалог',
       updatedAt: row.updated_at,
     };
   });
@@ -632,6 +628,7 @@ function findEmptyConversation(db: Db, session: WebSession): string | null {
     FROM agent_threads t
     WHERE t.chat_id = ?
       AND t.user_id = ?
+      AND t.kind = 'chat'
       AND ((t.character_id IS NULL AND ? IS NULL) OR t.character_id = ?)
       AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.thread_id)
     ORDER BY t.created_at DESC, t.rowid DESC

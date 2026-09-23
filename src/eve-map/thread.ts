@@ -50,7 +50,7 @@ export function getOrCreatePerimeterThread(
     SELECT thread_id FROM agent_threads
     WHERE chat_id = ? AND user_id = ? AND kind = 'perimeter'
       AND (character_id IS ? OR character_id = ?)
-    ORDER BY updated_at DESC
+    ORDER BY updated_at DESC, rowid DESC
     LIMIT 1
   `).get(chatId, userId, characterId, characterId) as { thread_id: string } | undefined;
   if (existing) return existing.thread_id;
@@ -64,26 +64,21 @@ export function getOrCreatePerimeterThread(
 }
 
 /**
- * Begin a new Perimeter conversation.
- *
- * Deliberately not a delete. The advisor writes into this thread without being
- * asked, so removing rows would race with it; and the warnings a pilot received
- * during a flight are evidence, not clutter. `getOrCreatePerimeterThread` picks
- * the most recently updated thread, so the new one simply becomes the active
- * one and the old transcript stays reachable.
+ * Clear the current conversation without creating another sidebar session.
+ * The caller must reject resets while an agent request is active. Synchronous
+ * transaction boundaries keep advisory writes outside the clear operation.
  */
-export function startNewPerimeterThread(
-  db: Db,
-  chatId: number,
-  userId: number,
-  characterId: number | null,
-): string {
-  const threadId = randomUUID();
-  db.prepare(`
-    INSERT INTO agent_threads (thread_id, chat_id, character_id, user_id, kind)
-    VALUES (?, ?, ?, ?, 'perimeter')
-  `).run(threadId, chatId, characterId, userId);
-  return threadId;
+export function clearPerimeterThread(db: Db, threadId: string): void {
+  db.transaction(() => {
+    db.prepare('DELETE FROM thread_summaries WHERE thread_id = ?').run(threadId);
+    db.prepare('DELETE FROM thread_artifacts WHERE thread_id = ?').run(threadId);
+    db.prepare('DELETE FROM messages WHERE thread_id = ?').run(threadId);
+    db.prepare(`
+      UPDATE agent_threads SET last_response_id = NULL,
+        last_response_message_id = NULL, total_tokens = 0,
+        updated_at = datetime('now') WHERE thread_id = ?
+    `).run(threadId);
+  })();
 }
 
 /** Append an unprompted advisory as an assistant message. */
@@ -146,21 +141,8 @@ export function readPerimeterHistory(
   }));
 }
 
-/**
- * The conversation list titles a thread from its first *user* message, and a
- * Perimeter thread routinely opens with an assistant warning. Without this the
- * sidebar would show "Новый диалог" for every flight.
- */
-export function perimeterThreadTitle(
-  db: Db,
-  threadId: string,
-  locale: 'ru' | 'en',
-): string {
-  const row = db.prepare(`
-    SELECT content FROM messages WHERE thread_id = ? AND role = 'user'
-    ORDER BY id ASC LIMIT 1
-  `).get(threadId) as { content: string } | undefined;
-  if (row?.content.trim()) return row.content.trim().slice(0, 72);
+/** The flight assistant has a fixed title, independent of its first message. */
+export function perimeterThreadTitle(locale: 'ru' | 'en'): string {
   return locale === 'ru' ? 'Периметр' : 'Perimeter';
 }
 

@@ -210,8 +210,8 @@ export function PerimeterChat({ csrfToken, advisories, context, onFocusSystem }:
           setError(null);
           void webApi.map.resetChat(csrfToken)
             .then((payload) => {
-              // Everything already on screen belongs to the old thread; the
-              // stream's replay must not drag it back in.
+              // The history was cleared; the stream's replay must not bring
+              // already dismissed messages back into this same thread.
               clearedBeforeIdRef.current = messages.reduce(
                 (max, message) => Math.max(max, message.id),
                 clearedBeforeIdRef.current,
