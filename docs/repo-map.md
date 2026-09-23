@@ -61,7 +61,9 @@ Use it when you need to find the right file or folder before reading implementat
 - `esi-catalog.ts`: operation catalog derived from ESI spec
 - `sso.ts` / `sso-auth.ts`: token refresh and JWT verification
 - `capabilities.ts`: scope-aware private-access gating
-- `sde.ts`, `sde-loader.ts`, `sde-downloader.ts`: static data ingestion and lookup
+- `sde.ts`, `sde-loader.ts`, `sde-downloader.ts`: static data ingestion and lookup; both loaders expose a callable entry point (`loadSdeIntoDb`, `downloadSdeArchive`) next to their CLI `main`
+- `sde-source.ts`: identity of the upstream archive (ETag/Last-Modified/size), the `sde_meta` single-row snapshot, and the freshness comparison that never reads a size match as "current"
+- `sde-refresh.ts`: the operator refresh job — download, reload, forced map-graph rebuild — single-flight per process
 - `route-planner.ts`, `killmail.ts`: higher-level EVE features
 - `eve-scout-client.ts`, `eve-scout-executor.ts`, `eve-scout-tools.ts`: fixed public EVE-Scout transport, bounded projections, and deferred tool schemas; see `docs/eve-scout.md`
 - `market-history-summary.ts`: bounded 30/90-day public ESI market aggregation without raw daily rows
@@ -170,6 +172,7 @@ Defensive clients and tool schemas for community APIs (EVE Ref industry cost, zK
 - `market-ai-search-routes.ts`: `/api/web/market/ai-search` natural-language item picking via the light agent runner (`src/agent/market-ai-search.ts`, sde_sql + batch_market_prices, bounded budget), usage recorded to `usage_events` as channel `web`
 - `market-alert-routes.ts`: `/api/web/market/alerts*` price-alert CRUD and fired-event feed
 - `profile-routes.ts` + `profile-data.ts`: `/api/web/profile/` living-profile reads over the character_* datastore (SQL-side asset rollup, regional valuation, price-book age) plus the CSRF-protected manual sync with an overall deadline
+- `sde-routes.ts`: `/api/web/settings/sde` — operator-only static-data status, freshness check against CCP, and refresh start; access is the `WEB_ADMIN_CHARACTER_IDS` allowlist matched against the session's linked characters
 - `map-routes.ts`: `/api/web/map/` — status (graph readiness, missing scope, limits), bubble and system reads, risk-weighted routing, the Perimeter chat thread, and the SSE stream that owns the live position poll and releases it on abort
 - `transparency.ts`: public aggregate spend/infrastructure snapshot and session-gated personal spend
 - `auth-routes.ts`: one-time EVE SSO login redirect, OAuth callback, and `/callback` alias

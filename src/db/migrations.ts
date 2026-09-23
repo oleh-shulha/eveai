@@ -9,6 +9,11 @@ export function runMigrations(db: Db): void {
     addColumnIfMissing(db, 'users', 'active_character_version', 'INTEGER NOT NULL DEFAULT 0');
     addColumnIfMissing(db, 'agent_threads', 'character_id', 'INTEGER');
     addColumnIfMissing(db, 'esi_cache', 'etag', 'TEXT');
+    // What the loaded SDE snapshot was downloaded from, so freshness can be
+    // answered without pulling the whole archive again.
+    addColumnIfMissing(db, 'sde_meta', 'source_last_modified', 'TEXT');
+    addColumnIfMissing(db, 'sde_meta', 'source_etag', 'TEXT');
+    addColumnIfMissing(db, 'sde_meta', 'source_bytes', 'INTEGER');
     addColumnIfMissing(db, 'esi_cache', 'last_modified', 'TEXT');
     addColumnIfMissing(db, 'agent_threads', 'last_response_id', 'TEXT');
     addColumnIfMissing(db, 'agent_threads', 'last_response_message_id', 'INTEGER');

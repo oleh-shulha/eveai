@@ -502,6 +502,40 @@ export type ModelSettingsPayload = {
   canCustomize: boolean;
 };
 
+export type SdeRefreshState = {
+  status: 'idle' | 'running' | 'done' | 'failed';
+  step: 'download' | 'load' | 'map' | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  records: number | null;
+  mapSystems: number | null;
+  buildNumber: string | null;
+  error: string | null;
+};
+
+export type SdeFreshness = 'up_to_date' | 'update_available' | 'unknown';
+
+/** Operator-only static-data status; `admin: false` hides the whole panel. */
+export type SdeStatusPayload = {
+  ok: true;
+  admin: boolean;
+  local?: {
+    buildNumber: string | null;
+    loadedAt: string | null;
+    sourceLastModified: string | null;
+    sourceBytes: number | null;
+    systems: number;
+    types: number;
+    mapSystems: number;
+  };
+  lastCheck?: {
+    freshness: SdeFreshness;
+    checkedAt: string;
+    upstream: { lastModified: string | null; etag: string | null; bytes: number | null };
+  } | null;
+  job?: SdeRefreshState;
+};
+
 export type ShowcaseExample = {
   id: string;
   category: string;

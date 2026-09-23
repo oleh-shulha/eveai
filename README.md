@@ -22,6 +22,12 @@ What this fork changes on top of `garshany/eveai`:
   replay, server-side response state). `compatible` assumes only the core of the Responses API and
   switches to the application-owned substitutes: client tool search, the bounded local parallel
   batch, read subagents, and stateless continuation.
+- **Static data refreshed from the browser.** Settings gains an operator-only SDE panel: one button asks CCP
+  whether a newer archive exists (headers only, no download), the other downloads it, reloads the static tables
+  and rebuilds the Perimeter map graph as a single job with visible progress. Access is the
+  `WEB_ADMIN_CHARACTER_IDS` allowlist of EVE character ids; empty means nobody. Upstream can only do this on the
+  host with `npm run setup` plus a restart. The snapshot's build number now comes from the archive's own ETag
+  instead of the load date, so a same-day reload no longer leaves the map built from the previous universe.
 - **`OPENAI_PROVIDER_NAME` names the recipient of user data.** The browser consent screen and the
   startup banner show it; unset, it falls back to the host of `OPENAI_BASE_URL` instead of a vendor
   label that may no longer be true. See [Required Environment](#required-environment).

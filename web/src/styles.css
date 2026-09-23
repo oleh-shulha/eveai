@@ -2657,6 +2657,24 @@ button:disabled {
 
 .settings-note--locked { color: var(--warn, var(--muted)); }
 
+/* Operator SDE facts: label/value pairs that stay readable at phone width. */
+.sde-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+}
+
+.sde-facts dt { color: var(--muted); }
+.sde-facts dd { margin: 0; color: var(--text-secondary); overflow-wrap: anywhere; }
+.sde-facts code { font-size: var(--text-xs, var(--text-sm)); }
+
+@media (max-width: 520px) {
+  .sde-facts { grid-template-columns: 1fr; gap: var(--space-1) 0; }
+  .sde-facts dt { margin-top: var(--space-2); }
+}
+
 .settings-model-card:disabled {
   cursor: not-allowed;
   opacity: 0.55;

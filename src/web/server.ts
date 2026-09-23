@@ -19,6 +19,7 @@ import { registerMapRoutes } from './map-routes.js';
 import { registerMarketRoutes } from './market-routes.js';
 import { registerProfileRoutes } from './profile-routes.js';
 import { registerSecurityHeaders } from './security.js';
+import { registerSdeRoutes } from './sde-routes.js';
 import { registerSettingsRoutes } from './settings-routes.js';
 
 export async function createServer(db: Db) {
@@ -44,6 +45,7 @@ export async function createServer(db: Db) {
     registerMarketAiSearchRoutes(app, db);
     registerMarketAlertRoutes(app, db);
     registerSettingsRoutes(app, db);
+    registerSdeRoutes(app, db);
     registerProfileRoutes(app, db);
     registerMapRoutes(app, db, agentRequests);
     registerExamplesRoutes(app);

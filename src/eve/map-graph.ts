@@ -799,7 +799,8 @@ function readSecurity(raw: Record<string, unknown>): number {
 
 function readSdeBuildNumber(db: Db): string | null {
   try {
-    const row = db.prepare('SELECT build_number FROM sde_meta LIMIT 1').get() as
+    // Newest first: an older row must never decide that the map is current.
+    const row = db.prepare('SELECT build_number FROM sde_meta ORDER BY loaded_at DESC LIMIT 1').get() as
       { build_number: number | string | null } | undefined;
     if (!row || row.build_number === null || row.build_number === undefined) return null;
     return String(row.build_number);

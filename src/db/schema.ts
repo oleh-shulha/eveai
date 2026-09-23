@@ -255,7 +255,10 @@ CREATE TABLE IF NOT EXISTS plan_steps (
 
 CREATE TABLE IF NOT EXISTS sde_meta (
   build_number TEXT PRIMARY KEY,
-  loaded_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  loaded_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  source_last_modified TEXT,
+  source_etag  TEXT,
+  source_bytes INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS sde_raw_records (

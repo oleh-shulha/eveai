@@ -477,6 +477,41 @@ sessions, EVE links, and feed cursors back to the backup timestamp; the
 EVE-KILL feed resumes from its stored cursor and does not replay events missed
 after it.
 
+## Static Data (SDE)
+
+Static game data comes from the archive CCP publishes at
+`https://developers.eveonline.com/static-data/`. `npm run setup` downloads and
+extracts it (~100 MB compressed, ~650 MB on disk) into `SDE_DATA_DIR`, then
+replaces the contents of every `sde_*` table. Extraction shells out to `unzip`
+and falls back to `python3`; one of them must be on PATH of whoever runs it,
+including the service user if the refresh is started from the browser.
+
+There is no automatic freshness check. CCP ships a new build with patches and
+expansions, and a stale snapshot shows up as an unresolvable new item or a
+missing system, never as wrong live prices — those come from ESI.
+
+Two ways to refresh:
+
+- On the host: stop the service, run `npm run setup`, start it again. The map
+  graph rebuilds on the next boot because the build number changed.
+- From the browser: **Settings → EVE static data**, available only to the EVE
+  characters listed in `WEB_ADMIN_CHARACTER_IDS`. *Check for updates* asks CCP
+  for the archive headers only (no download) and compares them with what the
+  loaded snapshot was built from. *Download and reload* runs download → table
+  reload → forced map-graph rebuild as one job, one at a time per process, with
+  the step visible while it runs.
+
+The browser refresh deliberately does not take the runtime lock, so it works on
+a live service. SQLite's WAL keeps each table swap consistent, but during the
+reload the agent can read a partially reloaded table; answers in that window may
+say an item or system is unknown.
+
+`sde_meta` holds exactly one row describing the loaded snapshot: `build_number`
+derived from the archive's ETag (or its Last-Modified date), the load time, and
+the upstream validators the freshness check compares against. The build number
+changes only when the archive does, which is what makes the map-graph rebuild
+trigger reliable.
+
 ## Updating
 
 All chat surfaces are read-only with respect to project updates. Check the

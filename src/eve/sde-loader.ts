@@ -19,8 +19,14 @@ import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { join, basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { initDb } from '../db/sqlite.js';
+import { initDb, type Db } from '../db/sqlite.js';
 import { runMigrations } from '../db/migrations.js';
+import {
+  deriveSdeBuildNumber,
+  readSdeIdentitySidecar,
+  writeSdeSnapshot,
+  type SdeUpstreamIdentity,
+} from './sde-source.js';
 
 // Deliberately no src/config.js import: setup must work before the operator
 // has filled in the rest of .env (bot tokens, OpenAI key, EVE credentials).
@@ -490,18 +496,31 @@ async function loadGenericJsonlFile(
   return count;
 }
 
-async function main() {
-  const sdeDir = SDE_DATA_DIR;
-  console.log(`[sde-loader] Loading SDE from ${sdeDir}`);
+export type SdeLoadResult = {
+  totalRecords: number;
+  buildNumber: string;
+  emptyCriticalTables: string[];
+};
 
-  if (!existsSync(sdeDir)) {
-    console.error(`[sde-loader] Directory not found: ${sdeDir}`);
-    console.error('[sde-loader] Run "npm run sde:download" first.');
-    process.exit(1);
-  }
+// These power the most common queries (item/price lookups and route planning);
+// a silent partial load otherwise looks "done" but leaves the agent unable to
+// answer basic questions.
+const CRITICAL_TABLES = ['sde_types', 'sde_systems', 'sde_groups', 'sde_regions'];
 
-  const db = initDb(DB_PATH);
-  runMigrations(db);
+/**
+ * Replaces the contents of the SDE tables from the extracted JSONL files.
+ *
+ * Callable from the CLI loader and from the in-app refresh, so both record the
+ * same snapshot metadata and both see the same empty-table verdict. Migrations
+ * are the caller's job: this only reads files and writes rows.
+ */
+export async function loadSdeIntoDb(
+  db: Db,
+  sdeDir: string,
+  options: { identity?: SdeUpstreamIdentity; log?: (message: string) => void } = {},
+): Promise<SdeLoadResult> {
+  const log = options.log ?? ((message: string) => console.log(message));
+  const identity = options.identity ?? readSdeIdentitySidecar(sdeDir);
 
   let totalRecords = 0;
   let typeNameMap: Map<number, string> | undefined;
@@ -510,7 +529,7 @@ async function main() {
   for (const loader of LOADERS) {
     const { count, filePath } = await loadJsonlFile(db, loader, sdeDir, typeNameMap);
     if (count > 0) {
-      console.log(`  [done] ${loader.table}: ${count} records`);
+      log(`  [done] ${loader.table}: ${count} records`);
       totalRecords += count;
     }
     if (filePath) {
@@ -529,22 +548,15 @@ async function main() {
     const datasetName = basename(filePath, '.jsonl');
     const count = await loadGenericJsonlFile(db, datasetName, filePath);
     if (count > 0) {
-      console.log(`  [done] sde_raw_records:${datasetName}: ${count} records`);
+      log(`  [done] sde_raw_records:${datasetName}: ${count} records`);
       totalRecords += count;
     }
   }
 
-  // Update sde_meta
-  db.prepare(
-    `INSERT OR REPLACE INTO sde_meta (build_number, loaded_at) VALUES (?, datetime('now'))`
-  ).run('manual-' + new Date().toISOString().slice(0, 10));
+  const buildNumber = deriveSdeBuildNumber(identity);
+  writeSdeSnapshot(db, buildNumber, identity);
 
-  // Fail loudly if a critical table is empty. These power the most common
-  // queries (item/price lookups and route planning); a silent partial load
-  // otherwise looks "done" but leaves the agent unable to answer basic
-  // questions. Exit non-zero so `npm run setup` surfaces the problem.
-  const CRITICAL_TABLES = ['sde_types', 'sde_systems', 'sde_groups', 'sde_regions'];
-  const empty = CRITICAL_TABLES.filter((table) => {
+  const emptyCriticalTables = CRITICAL_TABLES.filter((table) => {
     try {
       return (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n === 0;
     } catch {
@@ -552,12 +564,30 @@ async function main() {
     }
   });
 
-  db.close();
-  console.log(`[sde-loader] Done. Total: ${totalRecords} records loaded.`);
+  return { totalRecords, buildNumber, emptyCriticalTables };
+}
 
-  if (empty.length > 0) {
+async function main() {
+  const sdeDir = SDE_DATA_DIR;
+  console.log(`[sde-loader] Loading SDE from ${sdeDir}`);
+
+  if (!existsSync(sdeDir)) {
+    console.error(`[sde-loader] Directory not found: ${sdeDir}`);
+    console.error('[sde-loader] Run "npm run sde:download" first.');
+    process.exit(1);
+  }
+
+  const db = initDb(DB_PATH);
+  runMigrations(db);
+  const result = await loadSdeIntoDb(db, sdeDir);
+  db.close();
+
+  console.log(`[sde-loader] Done. Total: ${result.totalRecords} records loaded (build ${result.buildNumber}).`);
+
+  // Exit non-zero so `npm run setup` surfaces a partial load.
+  if (result.emptyCriticalTables.length > 0) {
     console.error(
-      `[sde-loader] ERROR: critical tables empty after load: ${empty.join(', ')}. ` +
+      `[sde-loader] ERROR: critical tables empty after load: ${result.emptyCriticalTables.join(', ')}. ` +
         'Check that the matching *.jsonl files downloaded correctly, then re-run `npm run setup`.',
     );
     process.exit(1);

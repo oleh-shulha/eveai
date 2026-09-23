@@ -22,6 +22,7 @@ import type {
   MapRouteResponse,
   MapStatus,
   ModelSettingsPayload,
+  SdeStatusPayload,
   PerimeterMessage,
   MyTransparency,
   PilotProfile,
@@ -345,6 +346,17 @@ export const webApi = {
   getExamples: () => request<{ examples: ShowcaseExample[] }>('/api/web/examples'),
   getTransparency: () => request<TransparencyPayload>('/api/web/transparency'),
   getMyTransparency: () => request<MyTransparency>('/api/web/transparency/me'),
+  getSdeStatus: () => request<SdeStatusPayload>('/api/web/settings/sde'),
+  checkSdeFreshness: (csrfToken: string) => request<SdeStatusPayload>(
+    '/api/web/settings/sde/check',
+    { method: 'POST' },
+    csrfToken,
+  ),
+  refreshSde: (csrfToken: string) => request<SdeStatusPayload>(
+    '/api/web/settings/sde/refresh',
+    { method: 'POST' },
+    csrfToken,
+  ),
   getModelSettings: () => request<ModelSettingsPayload>('/api/web/settings/model'),
   saveModelSettings: (
     body: { model: string; reasoning_effort: string; verbosity: string },

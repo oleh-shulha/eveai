@@ -89,6 +89,24 @@ function optionalUsdAmount(name: string, fallback: number): number {
   return Number(trimmed);
 }
 
+/** Strict comma-separated EVE character id list; junk fails at startup. */
+function parseCharacterIdList(name: string): number[] {
+  const raw = process.env[name];
+  if (!raw || !raw.trim()) return [];
+  const ids = raw.split(',').map((entry) => {
+    const value = entry.trim();
+    if (!/^\d+$/.test(value)) {
+      throw new Error(`${name} must be a comma-separated list of EVE character ids, got: "${entry}"`);
+    }
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+      throw new Error(`${name} contains an out-of-range EVE character id: "${entry}"`);
+    }
+    return parsed;
+  });
+  return [...new Set(ids)];
+}
+
 const DEFAULT_BOOSTY_URL = 'https://boosty.to/artemy1337';
 
 /**
@@ -315,6 +333,9 @@ export const config = {
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean),
+    // EVE character ids allowed to run the operator-only browser controls
+    // (static-data refresh). Empty means nobody: these are not user features.
+    adminCharacterIds: parseCharacterIdList('WEB_ADMIN_CHARACTER_IDS'),
     sessionTtlHours: boundedPositiveInt('WEB_SESSION_TTL_HOURS', 720, 1, 8760),
     sessionCreationWindowSeconds: boundedPositiveInt(
       'WEB_SESSION_CREATION_WINDOW_SECONDS',
