@@ -5,7 +5,7 @@ import { formatUpdateStatus } from '../../src/update/format.js';
 
 function releaseResponse(
   tag = 'v3.3.1',
-  url = `https://github.com/garshany/eveai/releases/tag/${tag}`,
+  url = `https://github.com/oleh-shulha/eveai/releases/tag/${tag}`,
 ): Response {
   return new Response(JSON.stringify({
     tag_name: tag,
@@ -44,7 +44,7 @@ describe('project update checker', () => {
     const badResponses = [
       new Response(JSON.stringify({ tag_name: 'v3.3.1', html_url: 'https://evil.example/release', draft: false, prerelease: false })),
       releaseResponse('v3.3.1-rc.1'),
-      new Response(JSON.stringify({ tag_name: 'v3.3.1', html_url: 'https://github.com/garshany/eveai/releases/tag/v3.3.1', draft: false, prerelease: true })),
+      new Response(JSON.stringify({ tag_name: 'v3.3.1', html_url: 'https://github.com/oleh-shulha/eveai/releases/tag/v3.3.1', draft: false, prerelease: true })),
     ];
     for (const response of badResponses) {
       const status = await createUpdateChecker({

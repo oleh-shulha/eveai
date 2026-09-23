@@ -488,7 +488,7 @@ leave a mixed installation. Use a local operator/supervisor workflow:
    and do not reuse a possibly conflicting local tag:
 
    ```bash
-   git fetch --no-tags --force https://github.com/garshany/eveai.git \
+   git fetch --no-tags --force https://github.com/oleh-shulha/eveai.git \
      +refs/tags/vX.Y.Z:refs/eveai-releases/vX.Y.Z
    git rev-parse 'refs/eveai-releases/vX.Y.Z^{commit}'
    git show --no-patch --decorate refs/eveai-releases/vX.Y.Z

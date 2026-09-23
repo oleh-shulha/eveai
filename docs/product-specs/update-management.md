@@ -9,7 +9,7 @@ unavailable. `npm run update:check` exposes the same read-only check to an
 operator shell.
 
 The checker uses only
-`https://api.github.com/repos/garshany/eveai/releases/latest`, accepts an exact
+`https://api.github.com/repos/oleh-shulha/eveai/releases/latest`, accepts an exact
 stable semantic version and canonical release URL, ignores release body text,
 and shares one bounded 15-minute cache across chat requests.
 

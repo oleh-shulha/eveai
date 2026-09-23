@@ -1,7 +1,7 @@
 import { compareStableVersions, getAppVersion, parseStableVersion } from './version.js';
 
-export const UPDATE_API_URL = 'https://api.github.com/repos/garshany/eveai/releases/latest';
-const RELEASE_URL_PREFIX = 'https://github.com/garshany/eveai/releases/tag/';
+export const UPDATE_API_URL = 'https://api.github.com/repos/oleh-shulha/eveai/releases/latest';
+const RELEASE_URL_PREFIX = 'https://github.com/oleh-shulha/eveai/releases/tag/';
 const MAX_RESPONSE_BYTES = 64 * 1024;
 const DEFAULT_TIMEOUT_MS = 5_000;
 const DEFAULT_CACHE_TTL_MS = 15 * 60_000;

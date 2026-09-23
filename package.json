@@ -7,11 +7,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/garshany/eveai.git"
+    "url": "git+https://github.com/oleh-shulha/eveai.git"
   },
-  "homepage": "https://github.com/garshany/eveai#readme",
+  "homepage": "https://github.com/oleh-shulha/eveai#readme",
   "bugs": {
-    "url": "https://github.com/garshany/eveai/issues"
+    "url": "https://github.com/oleh-shulha/eveai/issues"
   },
   "keywords": [
     "eve-online",
