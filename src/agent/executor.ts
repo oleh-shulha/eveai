@@ -131,6 +131,7 @@ import { executeIntelNote } from '../eve-intel/notes.js';
 import { assessShip } from '../eve-board/threat.js';
 import { resolveActiveFitting, writeManualFitting } from '../eve/active-fitting.js';
 import { createWebSearchState, executeWebSearch, registerWebFetch, registerWebSearch } from './web-search.js';
+import { normalizeAgentText } from './text-normalize.js';
 import { firecrawlScrape } from './firecrawl.js';
 import { isWebAccessEnabled } from './web-access.js';
 import type { WebSearchState } from './web-search.js';
@@ -3618,7 +3619,7 @@ function storeAssistantMessage(
     const webRequestId = getActivitySink()?.requestId ?? null;
     const inserted = db.prepare(
       'INSERT INTO messages (thread_id, role, content, web_request_id) VALUES (?, ?, ?, ?)',
-    ).run(threadId, 'assistant', content, webRequestId);
+    ).run(threadId, 'assistant', normalizeAgentText(content), webRequestId);
     const messageId = Number(inserted.lastInsertRowid);
     db.prepare(
       `UPDATE agent_threads

@@ -4,6 +4,7 @@
  */
 import type { Db } from '../db/sqlite.js';
 import { pickTelegramParseMode } from '../telegram/formatting.js';
+import { normalizeAgentText } from './text-normalize.js';
 
 const MAX_TELEGRAM_LENGTH = 4096;
 
@@ -20,7 +21,7 @@ export function truncateForTelegram(text: string): string {
  * Strip any accidentally leaked tokens or secrets from the response.
  */
 export function sanitizeOutput(text: string): string {
-  return text
+  return normalizeAgentText(text)
     // Bearer tokens, including standard-base64 chars (+ / =).
     .replace(/Bearer\s+[A-Za-z0-9._+/=-]{20,}/g, 'Bearer [REDACTED]')
     // JWTs (access tokens), signature may contain / and +.

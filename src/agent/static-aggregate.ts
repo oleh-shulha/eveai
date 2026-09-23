@@ -1,4 +1,5 @@
 import type { Db } from '../db/sqlite.js';
+import { normalizeAgentText } from './text-normalize.js';
 import { getActivitySink } from './activity.js';
 import { executeUniverseObjectCount } from './tools.js';
 import { createLogger } from '../observability/logger.js';
@@ -325,7 +326,7 @@ function storeAssistantMessage(db: Db, threadId: string, content: string): void 
   db.prepare(`
     INSERT INTO messages (thread_id, role, content, web_request_id)
     VALUES (?, 'assistant', ?, ?)
-  `).run(threadId, content, getActivitySink()?.requestId ?? null);
+  `).run(threadId, normalizeAgentText(content), getActivitySink()?.requestId ?? null);
 }
 
 function saveLastResponseId(db: Db, threadId: string, responseId: string | null): void {

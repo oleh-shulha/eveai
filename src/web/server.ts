@@ -13,6 +13,7 @@ import { registerExamplesRoutes } from './examples-routes.js';
 import { buildCanonicalLoopbackUrl } from './canonical-origin.js';
 import { registerWebChatRoutes } from './chat-routes.js';
 import { registerCharacterAllowlistGate } from './character-allowlist.js';
+import { registerEveUiRoutes } from './eve-ui-routes.js';
 import { registerGateRoutes } from './gate-routes.js';
 import { registerHealthRoute } from './health.js';
 import { registerPrivateGate } from './private-gate.js';
@@ -61,6 +62,7 @@ export async function createServer(db: Db) {
     registerSdeRoutes(app, db);
     registerMarketSnapshotAdminRoutes(app, db);
     registerWebAccessRoutes(app, db);
+    registerEveUiRoutes(app, db);
     registerProfileRoutes(app, db);
     registerMapRoutes(app, db, agentRequests);
     registerExamplesRoutes(app);

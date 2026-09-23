@@ -114,6 +114,7 @@ For a public SSO callback, use HTTPS, set the callback URL exactly in the EVE De
 - **Perimeter live map:** an ego-centric graph of the systems around your pilot where the ring index *is* the jump distance, with live kill activity, explainable danger scoring, gate-camp detection, wormhole shortcuts, risk-weighted routing, and an agent chat that warns you unprompted — pursuit, camps on the next hop, and hulls that out-class yours.
 - Optional internet access: open-web search and single-page reading through Firecrawl, with an operator kill switch.
 - Optional access control for the browser app: a shared unlock password and an EVE character allowlist, with the SSO flow left reachable.
+- "Open in client" from the browser: the market item you are looking at opens in the running EVE client through ESI's UI endpoints, the same channel `/market` and `/info` use in Telegram and Discord.
 - Natural-language Telegram and Discord assistant for EVE Online questions and workflows.
 - Same-origin browser chat with anonymous sessions, conversation history, optional EVE SSO, and the same guarded agent/tool loop.
 - Browser market workspace: regional order books, SDE item cards, market history and alerts, and a natural-language AI item search.

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { webApi } from '../api';
 import { LocaleSwitch, useI18n } from '../i18n';
 import { MarketIcon, MenuIcon } from '../icons';
+import { OpenInClientButton } from './OpenInClient';
 import type { MarketOverview, MarketRegion, MarketSnapshotMeta } from '../types';
 import { AlertsPanel } from './market/AlertsPanel';
 import { MarketAiSearch } from './market/MarketAiSearch';
@@ -161,6 +162,7 @@ export function MarketScreen({ onMenu, csrfToken }: Props) {
                     <header className="market-hero">
                       <h2>{selectedType.name}</h2>
                       {overview?.group_name ? <p>{overview.group_name}</p> : null}
+                      <OpenInClientButton action="market" id={selectedType.typeId} csrfToken={csrfToken} />
                     </header>
                     {overviewLoading && !overview ? <div className="panel-loading">{t('loading')}…</div> : null}
                     {overviewError ? (

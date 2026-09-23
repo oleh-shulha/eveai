@@ -26,6 +26,7 @@ Use it when you need to find the right file or folder before reading implementat
 - `programmatic-contracts.ts`: exact nine-tool allowlist plus strict bounded success/error output schemas and safe serialization
 - `planner.ts` / `replanner.ts`: plan generation and adjustment
 - `compact.ts`: history reduction and compaction
+- `text-normalize.ts`: renders the LaTeX a model writes out of habit (`$ightarrow$`) as the character it meant, outside code blocks only
 - `prompts.ts`: prompt-policy boundary
 - `finalizer.ts`: response shaping and final output path
 - `tools.ts`: model-visible tool schema surface
@@ -181,6 +182,7 @@ Defensive clients and tool schemas for community APIs (EVE Ref industry cost, zK
 - `character-allowlist.ts`: `WEB_ALLOWED_CHARACTER_IDS` — the onRequest hook over `/api/web/*` (session bootstrap, SSO start and the private gate stay open) plus the check EVE SSO uses to refuse attaching any other character to a browser login
 - `private-gate.ts`: the PRIVATE_PASSWORD lock — the onRequest hook over `/api/web/*`, the signed unlock cookie (bound to a fingerprint of the current password), and the per-address failure budget
 - `gate-routes.ts`: `/api/web/gate` — the only endpoint a locked visitor may call: state, unlock, and lock again
+- `eve-ui-routes.ts`: `/api/web/eve/ui` — hands one action to the running EVE client through ESI's UI endpoints (market details, show info); CSRF-checked, needs a linked character with `esi-ui.open_window.v1`, and answers `client_unavailable` when the client is closed
 - `web-access-routes.ts`: `/api/web/settings/web-access` — operator-only Firecrawl status (host only) and the runtime kill switch
 - `sde-routes.ts`: `/api/web/settings/sde` — operator-only static-data status, freshness check against CCP, and refresh start; access is the `WEB_ADMIN_CHARACTER_IDS` allowlist matched against the session's linked characters
 - `map-routes.ts`: `/api/web/map/` — status (graph readiness, missing scope, limits), bubble and system reads, risk-weighted routing, the Perimeter chat thread, and the SSE stream that owns the live position poll and releases it on abort

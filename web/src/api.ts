@@ -128,6 +128,11 @@ async function request<T>(
 }
 
 export const webApi = {
+  openInClient: (action: 'market' | 'info', id: number, csrfToken: string) => request<{ ok: true }>(
+    '/api/web/eve/ui',
+    { method: 'POST', body: JSON.stringify({ action, id }) },
+    csrfToken,
+  ),
   getGate: () => request<GatePayload>('/api/web/gate'),
   unlock: (password: string) => request<GatePayload>('/api/web/gate', {
     method: 'POST',
